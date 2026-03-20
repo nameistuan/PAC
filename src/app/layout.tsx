@@ -22,15 +22,6 @@ export default function RootLayout({
           </div>
           <nav className={styles.sidebarNav}>
             <div className={styles.navSection}>
-              <h3>Calendar Views</h3>
-              <ul>
-                <li className={styles.active}>Month</li>
-                <li>Week</li>
-                <li>Day</li>
-              </ul>
-            </div>
-            
-            <div className={styles.navSection}>
               <h3>Project Boards</h3>
               <ul className={styles.projectList}>
                 <li>
@@ -49,7 +40,15 @@ export default function RootLayout({
         {/* Main Application Area */}
         <div className={styles.mainContent}>
           <header className={styles.topbar}>
-            <div className={styles.dateSelector}>March 2026</div>
+            <div className={styles.topbarLeft}>
+              <div className={styles.dateSelector}>March 2026</div>
+              
+              <div className={styles.viewToggle}>
+                <button className={`${styles.toggleBtn} ${styles.active}`}>Month</button>
+                <button className={styles.toggleBtn}>Week</button>
+                <button className={styles.toggleBtn}>Day</button>
+              </div>
+            </div>
             <button className={styles.addButton}>+ New Event</button>
           </header>
           
