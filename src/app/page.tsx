@@ -1,15 +1,75 @@
 import styles from './page.module.css'
+import prisma from '@/lib/prisma'
+import {
+  startOfMonth,
+  endOfMonth,
+  startOfWeek,
+  endOfWeek,
+  eachDayOfInterval,
+  isSameMonth,
+  isToday,
+  format,
+  parseISO
+} from 'date-fns'
 
-export default function MonthView() {
+export const dynamic = 'force-dynamic' // Ensure Next.js doesn't cache the real-time calendar during MVP
+
+export default async function MonthView({
+  searchParams
+}: {
+  searchParams: Promise<{ month?: string }>
+}) {
+  const resolvedParams = await searchParams
   const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
   
-  // Static placeholder data for UI demonstration to prove layout logic
-  const calendarDays = Array.from({ length: 35 }).map((_, i) => ({
-    date: i + 1,
-    isToday: i === 14,
-    isOtherMonth: i > 30,
-    events: i === 12 ? ['Q1 Planning', 'Design Sync'] : i === 14 ? ['Lunch with Alex'] : []
-  }))
+  // 1. Determine current month interval structure
+  let currentDate = new Date()
+  if (resolvedParams.month) {
+    currentDate = parseISO(`${resolvedParams.month}-01T12:00:00Z`)
+  }
+  const monthStart = startOfMonth(currentDate)
+  const monthEnd = endOfMonth(monthStart)
+  
+  // 2. Pad the grid with trailing days from the previous/next month automatically
+  const startDate = startOfWeek(monthStart)
+  const endDate = endOfWeek(monthEnd)
+  
+  const daysInGrid = eachDayOfInterval({
+    start: startDate,
+    end: endDate
+  })
+
+  // 3. Fetch real events from database for this specific visual range
+  const events = await prisma.event.findMany({
+    where: {
+      startTime: {
+        gte: startDate,
+        lte: endDate,
+      }
+    },
+    include: {
+      project: true // Bring in the Tags/Colors
+    }
+  });
+
+  // 4. Map the UI representations safely
+  const calendarDays = daysInGrid.map(day => {
+    // Isolate events that occur on this exact day
+    const dayDateString = format(day, 'yyyy-MM-dd');
+    
+    const dayEvents = events.filter(e => {
+      const eventDateString = format(e.startTime, 'yyyy-MM-dd');
+      return eventDateString === dayDateString;
+    });
+
+    return {
+      dateObj: day,
+      date: day.getDate(),
+      isToday: isToday(day),
+      isOtherMonth: !isSameMonth(day, monthStart),
+      events: dayEvents
+    }
+  })
 
   return (
     <div className={styles.monthView}>
@@ -30,13 +90,24 @@ export default function MonthView() {
             `}
           >
             <div className={styles.dateNumber}>
-              {day.isOtherMonth ? (day.date % 31) + 1 : day.date}
+              {day.date}
             </div>
             
             <div className={styles.eventsContainer}>
-              {day.events.map((event, eventIdx) => (
-                <div key={eventIdx} className={styles.eventBadge}>
-                  {event}
+              {day.events.map((event) => (
+                <div 
+                  key={event.id} 
+                  className={styles.eventBadge}
+                  style={event.project ? {
+                     color: event.project.color,
+                     borderLeftColor: event.project.color,
+                     // Generate a highly transparent background utilizing the hex code directly via CSS trick
+                     // Note: To use hex transparency perfectly we could convert, but standard generic styles work:
+                     backgroundColor: 'var(--grid-border)',
+                     boxShadow: `0 0 0 1px ${event.project.color}33 inset` 
+                  } : {}}
+                >
+                  {event.title}
                 </div>
               ))}
             </div>
