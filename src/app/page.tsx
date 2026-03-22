@@ -57,10 +57,10 @@ export default async function MonthView({
     // Isolate events that occur on this exact day
     const dayDateString = format(day, 'yyyy-MM-dd');
     
-    const dayEvents = events.filter(e => {
+    const dayEvents = events.filter((e: any) => {
       const eventDateString = format(e.startTime, 'yyyy-MM-dd');
       return eventDateString === dayDateString;
-    });
+    }).sort((a: any, b: any) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
 
     return {
       dateObj: day,
@@ -94,20 +94,16 @@ export default async function MonthView({
             </div>
             
             <div className={styles.eventsContainer}>
-              {day.events.map((event) => (
-                <div 
-                  key={event.id} 
-                  className={styles.eventBadge}
-                  style={event.project ? {
-                     color: event.project.color,
-                     borderLeftColor: event.project.color,
-                     // Generate a highly transparent background utilizing the hex code directly via CSS trick
-                     // Note: To use hex transparency perfectly we could convert, but standard generic styles work:
-                     backgroundColor: 'var(--grid-border)',
-                     boxShadow: `0 0 0 1px ${event.project.color}33 inset` 
-                  } : {}}
-                >
-                  {event.title}
+              {day.events.map((event: any) => (
+                <div key={event.id} className={styles.eventBadge}>
+                  <div 
+                    className={styles.eventDot} 
+                    style={{ backgroundColor: event.project ? event.project.color : 'var(--text-secondary)' }}
+                  />
+                  <span className={styles.eventTime}>
+                    {format(new Date(event.startTime), 'h:mma').toLowerCase()}
+                  </span>
+                  <span className={styles.eventTitle}>{event.title}</span>
                 </div>
               ))}
             </div>

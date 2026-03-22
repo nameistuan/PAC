@@ -127,6 +127,25 @@
   gap: 2rem;
 }
 
+.hamburgerBtn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--text-secondary);
+  padding: 0.5rem;
+  border-radius: 50%;
+  transition: background-color 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 0.5rem;
+}
+
+.hamburgerBtn:hover {
+  background-color: var(--surface-hover);
+  color: var(--text-primary);
+}
+
 .dateSelector {
   font-size: 1.5rem;
   font-weight: 600;

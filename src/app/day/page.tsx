@@ -1,0 +1,92 @@
+import styles from '../week/page.module.css'
+import prisma from '@/lib/prisma'
+import {
+  isToday,
+  format,
+  parseISO
+} from 'date-fns'
+
+export const dynamic = 'force-dynamic' 
+
+export default async function DayView({
+  searchParams
+}: {
+  searchParams: Promise<{ month?: string }>
+}) {
+  const resolvedParams = await searchParams
+  
+  let currentDate = new Date()
+  if (resolvedParams.month) {
+    currentDate = parseISO(`${resolvedParams.month}-01T12:00:00Z`)
+  }
+  
+  // Set boundaries for the specific day
+  const startDate = new Date(currentDate)
+  startDate.setHours(0,0,0,0)
+  const endDate = new Date(currentDate)
+  endDate.setHours(23,59,59,999)
+
+  const events = await prisma.event.findMany({
+    where: {
+      startTime: { gte: startDate, lte: endDate }
+    },
+    include: { project: true }
+  });
+
+  const hours = Array.from({ length: 24 }).map((_, i) => i)
+
+  return (
+    <div className={styles.weekView}>
+      <div className={styles.headerRow} style={{ gridTemplateColumns: '60px 1fr' }}>
+        <div className={styles.timeColHeader} />
+        <div className={styles.dayHeader}>
+          <span className={styles.dayName}>{format(currentDate, 'EEEE')}</span>
+          <span className={`${styles.dayNumber} ${isToday(currentDate) ? styles.todayNum : ''}`}>
+            {format(currentDate, 'd')}
+          </span>
+        </div>
+      </div>
+      
+      <div className={styles.gridBody}>
+        {/* Time Column */}
+        <div className={styles.timeCol}>
+          {hours.map(hour => (
+            <div key={hour} className={styles.timeLabel} style={{ top: `${hour * 60}px` }}>
+              {hour === 0 ? '' : format(new Date().setHours(hour, 0), 'ha')}
+            </div>
+          ))}
+        </div>
+
+        {/* Day Grid */}
+        <div className={styles.daysContainer} style={{ gridTemplateColumns: '1fr' }}>
+          <div className={styles.dayCol}>
+            {events.map((event: any) => {
+              const startHour = event.startTime.getHours()
+              const startMin = event.startTime.getMinutes()
+              
+              const top = (startHour * 60) + startMin
+              const height = 60
+
+              return (
+                <div 
+                  key={event.id} 
+                  className={styles.eventBlock}
+                  style={{
+                    top: `${top}px`,
+                    height: `${height}px`,
+                    backgroundColor: event.project ? `${event.project.color}33` : 'var(--surface-hover)',
+                    color: event.project ? event.project.color : 'var(--text-primary)',
+                    borderLeft: `4px solid ${event.project ? event.project.color : 'var(--border-color)'}`
+                  }}
+                >
+                  <span className={styles.eventTitle}>{event.title}</span>
+                  <span className={styles.eventTime}>{format(event.startTime, 'h:mm a')}</span>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}

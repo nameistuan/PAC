@@ -8,6 +8,7 @@ import EventModal from './EventModal'
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const [sidebarWidth, setSidebarWidth] = useState(250)
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true)
   const [isEventModalOpen, setIsEventModalOpen] = useState(false)
   
   const searchParams = useSearchParams()
@@ -64,42 +65,49 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   }, [])
 
   return (
-    <div 
-      className={styles.appContainer} 
-      style={{ '--sidebar-width': `${sidebarWidth}px` } as React.CSSProperties}
-    >
-      <aside className={styles.sidebar}>
-        <div className={styles.sidebarHeader}>
-          <h2>PAC.</h2>
-        </div>
-        <nav className={styles.sidebarNav}>
-          <div className={styles.navSection}>
-            <h3>Project Boards</h3>
-            <ul className={styles.projectList}>
-              <li>
-                <span className={styles.projectDot} style={{backgroundColor: 'var(--primary-color)'}}></span> 
-                General
-              </li>
-              <li>
-                <span className={styles.projectDot} style={{backgroundColor: 'var(--secondary-color)'}}></span> 
-                Engineering
-              </li>
-            </ul>
-          </div>
-        </nav>
-      </aside>
+    <div className={styles.appContainer}>
+      {/* Sidebar - Conditional Rendering */}
+      {isSidebarOpen && (
+        <>
+          <aside className={styles.sidebar} style={{ width: `${sidebarWidth}px` }}>
+            <div className={styles.sidebarHeader}>
+              <h1 className={styles.logo}>PAC</h1>
+            </div>
+            
+            <nav className={styles.sidebarNav}>
+              {/* Project Boards will be mapped here later */}
+              <div className={styles.navSection}>
+                <h3 className={styles.sectionTitle}>My Courses</h3>
+                <ul className={styles.projectList}>
+                  <li className={styles.projectItem}>
+                    <span className={styles.colorDot} style={{backgroundColor: '#8F6B91'}}></span>
+                    Biology 101
+                  </li>
+                  <li className={styles.projectItem}>
+                    <span className={styles.colorDot} style={{backgroundColor: '#10b981'}}></span>
+                    Engineering
+                  </li>
+                </ul>
+              </div>
+            </nav>
+          </aside>
 
-      {/* Invisible Interactive Resizer Handle */}
-      <div 
-        className={styles.resizer} 
-        onMouseDown={startResizing}
-        title="Drag to resize sidebar"
-      />
+          {/* Interactive Resizer Handle */}
+          <div className={styles.resizer} onMouseDown={startResizing} />
+        </>
+      )}
 
-      {/* Main Application Area */}
+      {/* Main Content Area */}
       <div className={styles.mainContent}>
         <header className={styles.topbar}>
           <div className={styles.topbarLeft}>
+            <button className={styles.hamburgerBtn} onClick={() => setIsSidebarOpen(!isSidebarOpen)}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M3 12H21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M3 6H21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M3 18H21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </button>
             <div className={styles.dateSelector}>
               <button className={styles.iconBtn} onClick={handlePrevMonth}>&lt;</button>
               <h2>{displayDate}</h2>
@@ -113,9 +121,18 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             </button>
             
             <div className={styles.viewToggle}>
-              <button className={`${styles.toggleBtn} ${styles.active}`}>Month</button>
-              <button className={styles.toggleBtn}>Week</button>
-              <button className={styles.toggleBtn}>Day</button>
+              <button 
+                className={`${styles.toggleBtn} ${pathname === '/' ? styles.active : ''}`}
+                onClick={() => router.push('/')}
+              >Month</button>
+              <button 
+                className={`${styles.toggleBtn} ${pathname === '/week' ? styles.active : ''}`}
+                onClick={() => router.push('/week')}
+              >Week</button>
+              <button 
+                className={`${styles.toggleBtn} ${pathname === '/day' ? styles.active : ''}`}
+                onClick={() => router.push('/day')}
+              >Day</button>
             </div>
           </div>
           <button className={styles.addButton} onClick={() => setIsEventModalOpen(true)}>+ New Event</button>

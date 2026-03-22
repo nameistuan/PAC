@@ -98,20 +98,38 @@
 }
 
 .eventBadge {
-  background-color: rgba(79, 70, 229, 0.1);
-  color: var(--primary-color);
+  display: flex;
+  align-items: center;
+  gap: 4px;
   font-size: 0.75rem;
-  font-weight: 600;
-  padding: 0.25rem 0.5rem;
+  padding: 2px 4px;
   border-radius: 4px;
-  text-overflow: ellipsis;
+  cursor: pointer;
+  color: var(--text-primary);
+  border: none;
+  background: transparent;
   white-space: nowrap;
   overflow: hidden;
-  border-left: 3px solid var(--primary-color);
-  transition: transform 0.1s ease;
 }
 
 .eventBadge:hover {
-  transform: translateX(2px);
-  background-color: rgba(79, 70, 229, 0.15);
+  background-color: var(--surface-hover);
+}
+
+.eventDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.eventTime {
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.eventTitle {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
