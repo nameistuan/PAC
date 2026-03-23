@@ -25,6 +25,10 @@
   }
 }
 
+html {
+  font-size: 85%; /* Using 85% instead of 80x to prevent micro text from vanishing entirely while achieving the spacious feel */
+}
+
 * {
   box-sizing: border-box;
   padding: 0;
