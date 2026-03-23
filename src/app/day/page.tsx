@@ -25,9 +25,10 @@ export default async function DayView({
   
   // Set boundaries for the specific 3-day block
   const startDate = new Date(currentDate)
+  startDate.setDate(startDate.getDate() - 1) // Center - 1 day (Yesterday)
   startDate.setHours(0,0,0,0)
   const endDate = new Date(currentDate)
-  endDate.setDate(endDate.getDate() + 2) // Today + next 2 days
+  endDate.setDate(endDate.getDate() + 1) // Center + 1 day (Tomorrow)
   endDate.setHours(23,59,59,999)
 
   const daysInGrid = eachDayOfInterval({ start: startDate, end: endDate })

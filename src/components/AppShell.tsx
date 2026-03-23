@@ -47,13 +47,14 @@ export default function AppShell({
 
   let displayDate = format(currentDate, 'MMMM yyyy')
   if (pathname === '/day') {
-    const endThreeDay = addDays(currentDate, 2)
-    if (currentDate.getMonth() === endThreeDay.getMonth()) {
-      displayDate = format(currentDate, 'MMMM yyyy') // Both within same month
-    } else if (currentDate.getFullYear() === endThreeDay.getFullYear()) {
-      displayDate = `${format(currentDate, 'MMM')} - ${format(endThreeDay, 'MMM yyyy')}`
+    const startThreeDay = subDays(currentDate, 1)
+    const endThreeDay = addDays(currentDate, 1)
+    if (startThreeDay.getMonth() === endThreeDay.getMonth()) {
+      displayDate = format(startThreeDay, 'MMMM yyyy') // Both within same month
+    } else if (startThreeDay.getFullYear() === endThreeDay.getFullYear()) {
+      displayDate = `${format(startThreeDay, 'MMM')} - ${format(endThreeDay, 'MMM yyyy')}`
     } else {
-      displayDate = `${format(currentDate, 'MMM yyyy')} - ${format(endThreeDay, 'MMM yyyy')}`
+      displayDate = `${format(startThreeDay, 'MMM yyyy')} - ${format(endThreeDay, 'MMM yyyy')}`
     }
   } else if (pathname === '/week') {
     const weekStart = startOfWeek(currentDate)
