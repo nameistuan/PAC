@@ -47,14 +47,14 @@ export default function AppShell({
 
   let displayDate = format(currentDate, 'MMMM yyyy')
   if (pathname === '/day') {
-    const startThreeDay = subDays(currentDate, 1)
-    const endThreeDay = addDays(currentDate, 1)
-    if (startThreeDay.getMonth() === endThreeDay.getMonth()) {
-      displayDate = format(startThreeDay, 'MMMM yyyy') // Both within same month
-    } else if (startThreeDay.getFullYear() === endThreeDay.getFullYear()) {
-      displayDate = `${format(startThreeDay, 'MMM')} - ${format(endThreeDay, 'MMM yyyy')}`
+    const startFourDay = subDays(currentDate, 1)
+    const endFourDay = addDays(currentDate, 2)
+    if (startFourDay.getMonth() === endFourDay.getMonth()) {
+      displayDate = format(startFourDay, 'MMMM yyyy') // Both within same month
+    } else if (startFourDay.getFullYear() === endFourDay.getFullYear()) {
+      displayDate = `${format(startFourDay, 'MMM')} - ${format(endFourDay, 'MMM yyyy')}`
     } else {
-      displayDate = `${format(startThreeDay, 'MMM yyyy')} - ${format(endThreeDay, 'MMM yyyy')}`
+      displayDate = `${format(startFourDay, 'MMM yyyy')} - ${format(endFourDay, 'MMM yyyy')}`
     }
   } else if (pathname === '/week') {
     const weekStart = startOfWeek(currentDate)
@@ -72,7 +72,7 @@ export default function AppShell({
     let prev = currentDate
     if (pathname === '/') prev = subMonths(currentDate, 1)
     if (pathname === '/week') prev = subWeeks(currentDate, 1)
-    if (pathname === '/day') prev = subDays(currentDate, 3)
+    if (pathname === '/day') prev = subDays(currentDate, 4)
     router.push(`${pathname}?date=${format(prev, 'yyyy-MM-dd')}`)
   }
 
@@ -80,7 +80,7 @@ export default function AppShell({
     let next = currentDate
     if (pathname === '/') next = addMonths(currentDate, 1)
     if (pathname === '/week') next = addWeeks(currentDate, 1)
-    if (pathname === '/day') next = addDays(currentDate, 3)
+    if (pathname === '/day') next = addDays(currentDate, 4)
     router.push(`${pathname}?date=${format(next, 'yyyy-MM-dd')}`)
   }
   
@@ -197,7 +197,7 @@ export default function AppShell({
               <button 
                 className={`${styles.toggleBtn} ${pathname === '/day' ? styles.active : ''}`}
                 onClick={() => router.push(dateParam ? `/day?date=${dateParam}` : '/day')}
-              >3 Day</button>
+              >4 Day</button>
             </div>
             
             <button className={styles.addButton} onClick={() => setIsEventModalOpen(true)}>+ New Event</button>

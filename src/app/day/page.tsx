@@ -23,12 +23,12 @@ export default async function DayView({
     currentDate = parseISO(`${resolvedParams.month}-01T12:00:00Z`)
   }
   
-  // Set boundaries for the specific 3-day block
+  // Set boundaries for the specific 4-day block
   const startDate = new Date(currentDate)
-  startDate.setDate(startDate.getDate() - 1) // Center - 1 day (Yesterday)
+  startDate.setDate(startDate.getDate() - 1) // 1st slot (Yesterday)
   startDate.setHours(0,0,0,0)
   const endDate = new Date(currentDate)
-  endDate.setDate(endDate.getDate() + 1) // Center + 1 day (Tomorrow)
+  endDate.setDate(endDate.getDate() + 2) // 4th slot (Tomorrow + 1)
   endDate.setHours(23,59,59,999)
 
   const daysInGrid = eachDayOfInterval({ start: startDate, end: endDate })
@@ -44,7 +44,7 @@ export default async function DayView({
 
   return (
     <div className={styles.weekView}>
-      <div className={styles.headerRow} style={{ gridTemplateColumns: '60px repeat(3, 1fr)' }}>
+      <div className={styles.headerRow} style={{ gridTemplateColumns: '60px repeat(4, 1fr)' }}>
         <div className={styles.timeColHeader} />
         {daysInGrid.map(day => (
           <div key={day.toISOString()} className={styles.dayHeader}>
@@ -66,8 +66,8 @@ export default async function DayView({
           ))}
         </div>
 
-        {/* 3 Day Grid */}
-        <div className={styles.daysContainer} style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
+        {/* 4 Day Grid */}
+        <div className={styles.daysContainer} style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
           {daysInGrid.map(day => {
             const dayEvents = events.filter((e: any) => format(e.startTime, 'yyyy-MM-dd') === format(day, 'yyyy-MM-dd'))
 
