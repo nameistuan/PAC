@@ -290,7 +290,7 @@
 }
 
 .floatingArrowRight {
-  right: 12px; /* Leave space for the OS vertical scrollbar */
+  right: 0;
   border-left: 1px solid transparent;
 }
 .floatingArrowRight:hover {
