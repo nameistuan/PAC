@@ -44,10 +44,6 @@ export default function AppShell({
     }
   }, [sidebarWidth, isSidebarOpen, isMounted])
   
-  const searchParams = useSearchParams()
-  const router = useRouter()
-  const pathname = usePathname()
-  
   const dateParam = searchParams.get('date')
   const monthParam = searchParams.get('month') // Fallback
   

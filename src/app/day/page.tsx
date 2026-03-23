@@ -6,6 +6,7 @@ import {
   format,
   parseISO
 } from 'date-fns'
+import Link from 'next/link'
 
 export const dynamic = 'force-dynamic' 
 
@@ -21,6 +22,14 @@ export default async function DayView({
     currentDate = parseISO(`${resolvedParams.date}T12:00:00Z`)
   } else if (resolvedParams.month) {
     currentDate = parseISO(`${resolvedParams.month}-01T12:00:00Z`)
+  }
+  
+  const getEventUrl = (eventId: string) => {
+    const params = new URLSearchParams()
+    if (resolvedParams.date) params.set('date', resolvedParams.date)
+    if (resolvedParams.month) params.set('month', resolvedParams.month)
+    params.set('editEvent', eventId)
+    return `/day?${params.toString()}`
   }
   
   // Set boundaries for the specific 4-day block
@@ -81,7 +90,9 @@ export default async function DayView({
                   const height = 51
 
                   return (
-                    <div 
+                    <Link 
+                      href={getEventUrl(event.id)}
+                      scroll={false}
                       key={event.id} 
                       className={styles.eventBlock}
                       style={{
@@ -94,7 +105,7 @@ export default async function DayView({
                     >
                       <span className={styles.eventTitle}>{event.title}</span>
                       <span className={styles.eventTime}>{format(event.startTime, 'h:mm a')}</span>
-                    </div>
+                    </Link>
                   )
                 })}
               </div>

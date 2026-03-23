@@ -4,9 +4,10 @@ import {
   eachDayOfInterval,
   isToday,
   format,
-  parseISO,
-  startOfWeek
+  startOfWeek,
+  parseISO
 } from 'date-fns'
+import Link from 'next/link'
 
 export const dynamic = 'force-dynamic' 
 
@@ -24,6 +25,14 @@ export default async function WeekView({
     currentDate = parseISO(`${resolvedParams.month}-01T12:00:00Z`)
   } else {
     currentDate = startOfWeek(new Date())
+  }
+  
+  const getEventUrl = (eventId: string) => {
+    const params = new URLSearchParams()
+    if (resolvedParams.date) params.set('date', resolvedParams.date)
+    if (resolvedParams.month) params.set('month', resolvedParams.month)
+    params.set('editEvent', eventId)
+    return `/week?${params.toString()}`
   }
   
   const startDate = new Date(currentDate)
@@ -84,7 +93,9 @@ export default async function WeekView({
                   const height = 51 // 1 hour = 51px
 
                   return (
-                    <div 
+                    <Link 
+                      href={getEventUrl(event.id)}
+                      scroll={false}
                       key={event.id} 
                       className={styles.eventBlock}
                       style={{
@@ -97,7 +108,7 @@ export default async function WeekView({
                     >
                       <span className={styles.eventTitle}>{event.title}</span>
                       <span className={styles.eventTime}>{format(event.startTime, 'h:mm a')}</span>
-                    </div>
+                    </Link>
                   )
                 })}
               </div>

@@ -11,6 +11,7 @@ import {
   format,
   parseISO
 } from 'date-fns'
+import Link from 'next/link'
 
 export const dynamic = 'force-dynamic' // Ensure Next.js doesn't cache the real-time calendar during MVP
 
@@ -28,6 +29,15 @@ export default async function MonthView({
     currentDate = parseISO(`${resolvedParams.date}T12:00:00Z`)
   } else if (resolvedParams.month) {
     currentDate = parseISO(`${resolvedParams.month}-01T12:00:00Z`)
+  }
+  
+  // Helper to construct event editing URL cleanly
+  const getEventUrl = (eventId: string) => {
+    const params = new URLSearchParams()
+    if (resolvedParams.date) params.set('date', resolvedParams.date)
+    if (resolvedParams.month) params.set('month', resolvedParams.month)
+    params.set('editEvent', eventId)
+    return `/?${params.toString()}`
   }
   const monthStart = startOfMonth(currentDate)
   const monthEnd = endOfMonth(monthStart)
@@ -96,7 +106,12 @@ export default async function MonthView({
             
             <div className={styles.eventsContainer}>
               {day.events.map((event: any) => (
-                <div key={event.id} className={styles.eventBadge}>
+                <Link 
+                  href={getEventUrl(event.id)} 
+                  scroll={false} 
+                  key={event.id} 
+                  className={styles.eventBadge}
+                >
                   <div 
                     className={styles.eventDot} 
                     style={{ backgroundColor: event.project ? event.project.color : 'var(--text-secondary)' }}
@@ -105,7 +120,7 @@ export default async function MonthView({
                     {format(new Date(event.startTime), 'h:mma').toLowerCase()}
                   </span>
                   <span className={styles.eventTitle}>{event.title}</span>
-                </div>
+                </Link>
               ))}
             </div>
           </div>
