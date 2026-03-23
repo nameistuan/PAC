@@ -9,7 +9,7 @@ interface Project {
   color: string;
 }
 
-export default function EventModal({ onClose }: { onClose: () => void }) {
+export default function EventModal({ eventId, onClose }: { eventId?: string, onClose: () => void }) {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10))
@@ -17,6 +17,7 @@ export default function EventModal({ onClose }: { onClose: () => void }) {
   
   const [projects, setProjects] = useState<Project[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const isEditing = !!eventId
 
   useEffect(() => {
     // Fetch available project tags
@@ -24,7 +25,20 @@ export default function EventModal({ onClose }: { onClose: () => void }) {
       .then(res => res.json())
       .then(data => setProjects(data))
       .catch(err => console.error("Failed to fetch projects", err))
-  }, [])
+      
+    // Fetch existing event payload if editing natively
+    if (eventId) {
+      fetch(`/api/events/${eventId}`)
+        .then(res => res.json())
+        .then(data => {
+          setTitle(data.title)
+          setDescription(data.description || '')
+          setDate(data.startTime.slice(0, 10))
+          setProjectId(data.projectId || '')
+        })
+        .catch(err => console.error("Failed to load focal event", err))
+    }
+  }, [eventId])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -35,8 +49,8 @@ export default function EventModal({ onClose }: { onClose: () => void }) {
     const end = new Date(`${date}T10:00:00`).toISOString()
 
     try {
-      await fetch('/api/events', {
-        method: 'POST',
+      await fetch(isEditing ? `/api/events/${eventId}` : '/api/events', {
+        method: isEditing ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           title,
@@ -47,7 +61,18 @@ export default function EventModal({ onClose }: { onClose: () => void }) {
         })
       })
       
-      // Successfully saved! Let window reload to hit the DB on the server components again
+      window.location.reload()
+    } catch (err) {
+      console.error(err)
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!eventId || !confirm('Are you absolutely sure you want to delete this event?')) return
+    setIsSubmitting(true)
+    try {
+      await fetch(`/api/events/${eventId}`, { method: 'DELETE' })
       window.location.reload()
     } catch (err) {
       console.error(err)
@@ -59,7 +84,7 @@ export default function EventModal({ onClose }: { onClose: () => void }) {
     <div className={styles.modalOverlay} onMouseDown={onClose}>
       <div className={styles.modalContent} onMouseDown={(e) => e.stopPropagation()}>
         <div className={styles.modalHeader}>
-          <h2 className={styles.modalTitle}>New Event</h2>
+          <h2 className={styles.modalTitle}>{isEditing ? 'Edit Event' : 'New Event'}</h2>
           <button type="button" className={styles.closeButton} onClick={onClose}>&times;</button>
         </div>
         
@@ -99,6 +124,17 @@ export default function EventModal({ onClose }: { onClose: () => void }) {
           </div>
           
           <div className={styles.modalFooter}>
+            {isEditing && (
+              <button 
+                type="button" 
+                className={`${styles.cancelBtn} ${styles.deleteBtn}`} 
+                onClick={handleDelete} 
+                disabled={isSubmitting}
+                style={{ color: '#ef4444', marginRight: 'auto' }}
+              >
+                Delete Event
+              </button>
+            )}
             <button type="button" className={styles.cancelBtn} onClick={onClose} disabled={isSubmitting}>
               Cancel
             </button>

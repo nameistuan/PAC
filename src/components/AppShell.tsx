@@ -19,8 +19,22 @@ export default function AppShell({
   const [isSidebarOpen, setIsSidebarOpen] = useState(defaultSidebarOpen)
   const [isMounted, setIsMounted] = useState(false)
   const [isEventModalOpen, setIsEventModalOpen] = useState(false)
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  const pathname = usePathname()
   
-  // Sync state to cookies when changed, so server gets it next hard-refresh
+  const editEventId = searchParams.get('editEvent')
+  const isModalVisuallyOpen = isEventModalOpen || !!editEventId
+
+  const handleCloseModal = () => {
+    setIsEventModalOpen(false)
+    if (editEventId) {
+      const newParams = new URLSearchParams(searchParams.toString())
+      newParams.delete('editEvent')
+      const targetQuery = newParams.toString()
+      router.push(targetQuery ? `${pathname}?${targetQuery}` : pathname, { scroll: false })
+    }
+  }
   useEffect(() => {
     if (isMounted) {
       document.cookie = `pac_sidebar_width=${sidebarWidth}; path=/; max-age=31536000`
@@ -90,10 +104,10 @@ export default function AppShell({
   const handlePrevDay = () => router.push(`${pathname}?date=${format(subDays(currentDate, 1), 'yyyy-MM-dd')}`)
   const handleNextDay = () => router.push(`${pathname}?date=${format(addDays(currentDate, 1), 'yyyy-MM-dd')}`)
 
-  const latestRefs = useRef({ currentDate, pathname, isEventModalOpen })
+  const latestRefs = useRef({ currentDate, pathname, isEventModalOpen: isModalVisuallyOpen })
   useEffect(() => {
-    latestRefs.current = { currentDate, pathname, isEventModalOpen }
-  }, [currentDate, pathname, isEventModalOpen])
+    latestRefs.current = { currentDate, pathname, isEventModalOpen: isModalVisuallyOpen }
+  }, [currentDate, pathname, isModalVisuallyOpen])
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -264,7 +278,7 @@ export default function AppShell({
         )}
       </div>
 
-      {isEventModalOpen && <EventModal onClose={() => setIsEventModalOpen(false)} />}
+      {isModalVisuallyOpen && <EventModal eventId={editEventId || undefined} onClose={handleCloseModal} />}
     </div>
   )
 }
