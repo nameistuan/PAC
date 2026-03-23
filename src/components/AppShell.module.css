@@ -127,6 +127,12 @@
   gap: 2rem;
 }
 
+.topbarRight {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
 .hamburgerBtn {
   background: transparent;
   border: none;
