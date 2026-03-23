@@ -27,17 +27,17 @@
 }
 
 .dayName {
-  font-size: 0.75rem;
+  font-size: 0.65rem;
   text-transform: uppercase;
   color: var(--text-secondary);
   font-weight: 500;
 }
 
 .dayNumber {
-  font-size: 1.1rem;
+  font-size: 0.95rem;
   font-weight: 400;
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   display: flex;
   align-items: center;
   justify-content: center;

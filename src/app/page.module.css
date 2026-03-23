@@ -37,7 +37,7 @@
 
 .dayName {
   text-transform: uppercase;
-  font-size: 0.70rem;
+  font-size: 0.65rem;
   font-weight: 500;
   color: var(--text-secondary);
   text-align: center;
@@ -64,11 +64,11 @@
 }
 
 .dateNumber {
-  font-size: 0.95rem;
+  font-size: 0.85rem;
   font-weight: 400;
   color: var(--text-primary);
-  width: 28px;
-  height: 28px;
+  width: 24px;
+  height: 24px;
   display: flex;
   align-items: center;
   justify-content: center;
