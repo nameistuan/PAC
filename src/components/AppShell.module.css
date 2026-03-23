@@ -151,7 +151,7 @@
   font-weight: 600;
   color: var(--text-primary);
   letter-spacing: -0.02em;
-  margin-left: 0.5rem;
+  margin-left: 1rem;
 }
 
 .todayBtn {
@@ -199,10 +199,9 @@
 .viewToggle {
   display: flex;
   align-items: center;
-  background-color: #52525b; /* dark gray pill background */
+  background-color: var(--grid-border);
   border-radius: 9999px;
   padding: 0.25rem;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
 }
 
 .toggleBtn {
@@ -210,7 +209,7 @@
   border: none;
   border-radius: 9999px;
   padding: 0.35rem 1.25rem;
-  color: #e4e4e7;
+  color: var(--text-secondary);
   font-size: 0.85rem;
   font-weight: 500;
   cursor: pointer;
@@ -218,15 +217,15 @@
 }
 
 .toggleBtn:hover:not(.active) {
-  color: #ffffff;
-  background-color: rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
 }
 
 .toggleBtn.active {
-  background-color: #ffffff;
-  color: #18181b;
+  background-color: var(--surface-color);
+  color: var(--text-primary);
   font-weight: 600;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  border: 1px solid var(--border-color);
 }
 
 .addButton {
