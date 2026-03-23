@@ -30,14 +30,14 @@
   font-size: 0.75rem;
   text-transform: uppercase;
   color: var(--text-secondary);
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .dayNumber {
-  font-size: 1.5rem;
-  font-weight: 500;
-  width: 40px;
-  height: 40px;
+  font-size: 1.1rem;
+  font-weight: 400;
+  width: 32px;
+  height: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -47,6 +47,7 @@
 .todayNum {
   background-color: var(--primary-color);
   color: white;
+  font-weight: 500;
 }
 
 .gridBody {

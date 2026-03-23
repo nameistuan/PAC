@@ -47,7 +47,14 @@ export default function AppShell({
 
   let displayDate = format(currentDate, 'MMMM yyyy')
   if (pathname === '/day') {
-    displayDate = format(currentDate, 'MMMM d, yyyy')
+    const endThreeDay = addDays(currentDate, 2)
+    if (currentDate.getMonth() === endThreeDay.getMonth()) {
+      displayDate = format(currentDate, 'MMMM yyyy') // Both within same month
+    } else if (currentDate.getFullYear() === endThreeDay.getFullYear()) {
+      displayDate = `${format(currentDate, 'MMM')} - ${format(endThreeDay, 'MMM yyyy')}`
+    } else {
+      displayDate = `${format(currentDate, 'MMM yyyy')} - ${format(endThreeDay, 'MMM yyyy')}`
+    }
   } else if (pathname === '/week') {
     const weekStart = startOfWeek(currentDate)
     const weekEnd = endOfWeek(currentDate)
@@ -64,7 +71,7 @@ export default function AppShell({
     let prev = currentDate
     if (pathname === '/') prev = subMonths(currentDate, 1)
     if (pathname === '/week') prev = subWeeks(currentDate, 1)
-    if (pathname === '/day') prev = subDays(currentDate, 1)
+    if (pathname === '/day') prev = subDays(currentDate, 3)
     router.push(`${pathname}?date=${format(prev, 'yyyy-MM-dd')}`)
   }
 
@@ -72,7 +79,7 @@ export default function AppShell({
     let next = currentDate
     if (pathname === '/') next = addMonths(currentDate, 1)
     if (pathname === '/week') next = addWeeks(currentDate, 1)
-    if (pathname === '/day') next = addDays(currentDate, 1)
+    if (pathname === '/day') next = addDays(currentDate, 3)
     router.push(`${pathname}?date=${format(next, 'yyyy-MM-dd')}`)
   }
   
@@ -189,7 +196,7 @@ export default function AppShell({
               <button 
                 className={`${styles.toggleBtn} ${pathname === '/day' ? styles.active : ''}`}
                 onClick={() => router.push(dateParam ? `/day?date=${dateParam}` : '/day')}
-              >Day</button>
+              >3 Day</button>
             </div>
             
             <button className={styles.addButton} onClick={() => setIsEventModalOpen(true)}>+ New Event</button>

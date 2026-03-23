@@ -1,6 +1,7 @@
 import styles from '../week/page.module.css'
 import prisma from '@/lib/prisma'
 import {
+  eachDayOfInterval,
   isToday,
   format,
   parseISO
@@ -22,11 +23,14 @@ export default async function DayView({
     currentDate = parseISO(`${resolvedParams.month}-01T12:00:00Z`)
   }
   
-  // Set boundaries for the specific day
+  // Set boundaries for the specific 3-day block
   const startDate = new Date(currentDate)
   startDate.setHours(0,0,0,0)
   const endDate = new Date(currentDate)
+  endDate.setDate(endDate.getDate() + 2) // Today + next 2 days
   endDate.setHours(23,59,59,999)
+
+  const daysInGrid = eachDayOfInterval({ start: startDate, end: endDate })
 
   const events = await prisma.event.findMany({
     where: {
@@ -39,14 +43,16 @@ export default async function DayView({
 
   return (
     <div className={styles.weekView}>
-      <div className={styles.headerRow} style={{ gridTemplateColumns: '60px 1fr' }}>
+      <div className={styles.headerRow} style={{ gridTemplateColumns: '60px repeat(3, 1fr)' }}>
         <div className={styles.timeColHeader} />
-        <div className={styles.dayHeader}>
-          <span className={styles.dayName}>{format(currentDate, 'EEEE')}</span>
-          <span className={`${styles.dayNumber} ${isToday(currentDate) ? styles.todayNum : ''}`}>
-            {format(currentDate, 'd')}
-          </span>
-        </div>
+        {daysInGrid.map(day => (
+          <div key={day.toISOString()} className={styles.dayHeader}>
+            <span className={styles.dayName}>{format(day, 'E')}</span>
+            <span className={`${styles.dayNumber} ${isToday(day) ? styles.todayNum : ''}`}>
+              {format(day, 'd')}
+            </span>
+          </div>
+        ))}
       </div>
       
       <div className={styles.gridBody}>
@@ -59,34 +65,40 @@ export default async function DayView({
           ))}
         </div>
 
-        {/* Day Grid */}
-        <div className={styles.daysContainer} style={{ gridTemplateColumns: '1fr' }}>
-          <div className={styles.dayCol}>
-            {events.map((event: any) => {
-              const startHour = event.startTime.getHours()
-              const startMin = event.startTime.getMinutes()
-              
-              const top = (startHour * 60) + startMin
-              const height = 60
+        {/* 3 Day Grid */}
+        <div className={styles.daysContainer} style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
+          {daysInGrid.map(day => {
+            const dayEvents = events.filter((e: any) => format(e.startTime, 'yyyy-MM-dd') === format(day, 'yyyy-MM-dd'))
 
-              return (
-                <div 
-                  key={event.id} 
-                  className={styles.eventBlock}
-                  style={{
-                    top: `${top}px`,
-                    height: `${height}px`,
-                    backgroundColor: event.project ? `${event.project.color}33` : 'var(--surface-hover)',
-                    color: event.project ? event.project.color : 'var(--text-primary)',
-                    borderLeft: `4px solid ${event.project ? event.project.color : 'var(--border-color)'}`
-                  }}
-                >
-                  <span className={styles.eventTitle}>{event.title}</span>
-                  <span className={styles.eventTime}>{format(event.startTime, 'h:mm a')}</span>
-                </div>
-              )
-            })}
-          </div>
+            return (
+              <div key={day.toISOString()} className={styles.dayCol}>
+                {dayEvents.map((event: any) => {
+                  const startHour = event.startTime.getHours()
+                  const startMin = event.startTime.getMinutes()
+                  
+                  const top = (startHour * 60) + startMin
+                  const height = 60
+
+                  return (
+                    <div 
+                      key={event.id} 
+                      className={styles.eventBlock}
+                      style={{
+                        top: `${top}px`,
+                        height: `${height}px`,
+                        backgroundColor: event.project ? `${event.project.color}33` : 'var(--surface-hover)',
+                        color: event.project ? event.project.color : 'var(--text-primary)',
+                        borderLeft: `4px solid ${event.project ? event.project.color : 'var(--border-color)'}`
+                      }}
+                    >
+                      <span className={styles.eventTitle}>{event.title}</span>
+                      <span className={styles.eventTime}>{format(event.startTime, 'h:mm a')}</span>
+                    </div>
+                  )
+                })}
+              </div>
+            )
+          })}
         </div>
       </div>
     </div>
