@@ -154,17 +154,17 @@ export default function AppShell({
                 <path d="M3 18H21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
             </button>
-            <button 
-              className={styles.todayBtn} 
-              onClick={() => router.push(pathname)}
-            >
-              Today
-            </button>
             <div className={styles.monthNavButtons}>
               <button className={styles.iconBtn} onClick={handlePrev}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
                 </svg>
+              </button>
+              <button 
+                className={styles.todayBtn} 
+                onClick={() => router.push(pathname)}
+              >
+                Today
               </button>
               <button className={styles.iconBtn} onClick={handleNext}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
