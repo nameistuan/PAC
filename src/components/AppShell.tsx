@@ -43,6 +43,8 @@ export default function AppShell({
     currentDate = parseISO(`${dateParam}T12:00:00Z`)
   } else if (monthParam) {
     currentDate = parseISO(`${monthParam}-01T12:00:00Z`)
+  } else if (pathname === '/week') {
+    currentDate = startOfWeek(new Date())
   }
 
   let displayDate = format(currentDate, 'MMMM yyyy')
@@ -57,8 +59,9 @@ export default function AppShell({
       displayDate = `${format(startFourDay, 'MMM yyyy')} - ${format(endFourDay, 'MMM yyyy')}`
     }
   } else if (pathname === '/week') {
-    const weekStart = startOfWeek(currentDate)
-    const weekEnd = endOfWeek(currentDate)
+    const weekStart = new Date(currentDate)
+    const weekEnd = new Date(currentDate)
+    weekEnd.setDate(weekEnd.getDate() + 6)
     if (weekStart.getMonth() === weekEnd.getMonth()) {
       displayDate = format(weekStart, 'MMMM yyyy')
     } else if (weekStart.getFullYear() === weekEnd.getFullYear()) {

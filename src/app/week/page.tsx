@@ -1,10 +1,12 @@
 import styles from './page.module.css'
 import prisma from '@/lib/prisma'
 import {
-  startOfWeek,
-  endOfWeek,
   eachDayOfInterval,
   isToday,
+  format,
+  parseISO,
+  startOfWeek
+} from 'date-fns'
   format,
   parseISO
 } from 'date-fns'
@@ -23,10 +25,15 @@ export default async function WeekView({
     currentDate = parseISO(`${resolvedParams.date}T12:00:00Z`)
   } else if (resolvedParams.month) {
     currentDate = parseISO(`${resolvedParams.month}-01T12:00:00Z`)
+  } else {
+    currentDate = startOfWeek(new Date())
   }
   
-  const startDate = startOfWeek(currentDate)
-  const endDate = endOfWeek(currentDate)
+  const startDate = new Date(currentDate)
+  startDate.setHours(0,0,0,0)
+  const endDate = new Date(currentDate)
+  endDate.setDate(endDate.getDate() + 6)
+  endDate.setHours(23,59,59,999)
   
   const daysInGrid = eachDayOfInterval({ start: startDate, end: endDate })
 
