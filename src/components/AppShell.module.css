@@ -33,7 +33,7 @@
 }
 
 .sidebarHeader {
-  height: 70px;
+  height: 50px;
   display: flex;
   align-items: center;
   padding: 0 1.5rem;
@@ -111,7 +111,7 @@
 }
 
 .topbar {
-  height: 70px;
+  height: 50px;
   border-bottom: 1px solid var(--border-color);
   background-color: var(--surface-color);
   display: flex;
@@ -153,8 +153,8 @@
 }
 
 .displayDate {
-  font-size: 1.5rem;
-  font-weight: 600;
+  font-size: 1.15rem;
+  font-weight: 500;
   color: var(--text-primary);
   letter-spacing: -0.02em;
 }

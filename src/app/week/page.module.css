@@ -61,6 +61,7 @@
   flex-shrink: 0;
   border-right: 1px solid var(--border-color);
   position: relative;
+  height: 1440px; /* Force bounds so border continues during scrolling */
 }
 
 .timeLabel {
