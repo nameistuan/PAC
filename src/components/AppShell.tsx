@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
-import { format, addMonths, subMonths, addWeeks, subWeeks, addDays, subDays, parseISO } from 'date-fns'
+import { format, addMonths, subMonths, addWeeks, subWeeks, addDays, subDays, parseISO, startOfWeek, endOfWeek } from 'date-fns'
 import styles from './AppShell.module.css'
 import EventModal from './EventModal'
 
@@ -26,9 +26,20 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     currentDate = parseISO(`${monthParam}-01T12:00:00Z`)
   }
 
-  const displayDate = pathname === '/day' 
-    ? format(currentDate, 'MMMM d, yyyy')
-    : format(currentDate, 'MMMM yyyy')
+  let displayDate = format(currentDate, 'MMMM yyyy')
+  if (pathname === '/day') {
+    displayDate = format(currentDate, 'MMMM d, yyyy')
+  } else if (pathname === '/week') {
+    const weekStart = startOfWeek(currentDate)
+    const weekEnd = endOfWeek(currentDate)
+    if (weekStart.getMonth() === weekEnd.getMonth()) {
+      displayDate = format(weekStart, 'MMMM yyyy')
+    } else if (weekStart.getFullYear() === weekEnd.getFullYear()) {
+      displayDate = `${format(weekStart, 'MMM')} - ${format(weekEnd, 'MMM yyyy')}`
+    } else {
+      displayDate = `${format(weekStart, 'MMM yyyy')} - ${format(weekEnd, 'MMM yyyy')}`
+    }
+  }
 
   const handlePrev = () => {
     let prev = currentDate
