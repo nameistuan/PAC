@@ -59,7 +59,7 @@ export default async function DayView({
         {/* Time Column */}
         <div className={styles.timeCol}>
           {hours.map(hour => (
-            <div key={hour} className={styles.timeLabel} style={{ top: `${hour * 60}px` }}>
+            <div key={hour} className={styles.timeLabel} style={{ top: `${hour * 51}px` }}>
               {hour === 0 ? '' : format(new Date().setHours(hour, 0), 'ha')}
             </div>
           ))}
@@ -76,8 +76,8 @@ export default async function DayView({
                   const startHour = event.startTime.getHours()
                   const startMin = event.startTime.getMinutes()
                   
-                  const top = (startHour * 60) + startMin
-                  const height = 60
+                  const top = (startHour * 51) + (startMin * (51 / 60))
+                  const height = 51
 
                   return (
                     <div 
