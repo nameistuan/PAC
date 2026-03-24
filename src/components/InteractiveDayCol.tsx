@@ -92,27 +92,28 @@ export default function InteractiveDayCol({ dateStr, className, children }: { da
           style={{
             position: 'absolute',
             top: `${previewY}px`,
-            left: '0px',
+            left: '5px',
             width: 'calc(100% - 10px)',
             height: `${previewHeight}px`,
             backgroundColor: (window as any).__activeDragColor ? `${(window as any).__activeDragColor}33` : 'var(--surface-hover)',
             color: (window as any).__activeDragColor || 'var(--text-primary)',
             borderLeft: `4px solid ${(window as any).__activeDragColor || 'var(--border-color)'}`,
             borderRadius: '4px',
-            pointerEvents: 'none', // Strictly prevent ghost from bubbling drop logic
+            pointerEvents: 'none',
             zIndex: 100,
             overflow: 'hidden',
-            padding: '0.25rem 0.5rem',
             fontSize: '0.75rem',
             lineHeight: 1.2
-            // transition: 'top 0.05s ease-out' // Removed micro-smoothing so it rigidly clicks block-by-block exactly as ordered
           }}
         >
-          <div style={{ fontWeight: 600, marginBottom: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {(window as any).__activeDragTitle}
-          </div>
-          <div style={{ opacity: 0.8 }}>
-            {(window as any).__activeDragTime}
+          {/* Internal padding node structured exactly to mimic the <Link> bounds on standard blocks */}
+          <div style={{ display: 'block', height: '100%', width: '100%', padding: '0.25rem 0.5rem' }}>
+            <div style={{ fontWeight: 600, marginBottom: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {(window as any).__activeDragTitle}
+            </div>
+            <div style={{ opacity: 0.8 }}>
+              {(window as any).__activeDragTime}
+            </div>
           </div>
         </div>
       )}
