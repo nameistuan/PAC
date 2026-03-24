@@ -15,20 +15,26 @@ export default function InteractiveDayCol({ dateStr, className, children }: { da
     e.preventDefault()
     const eventId = e.dataTransfer.getData('eventId')
     const durationMsRaw = e.dataTransfer.getData('eventDurationMs')
+    const dragOffsetYRaw = e.dataTransfer.getData('dragOffsetY')
     if (!eventId) return
     
     const durationMs = durationMsRaw ? parseInt(durationMsRaw) : 3600000 // default 1hr fallback
+    const dragOffsetY = dragOffsetYRaw ? parseFloat(dragOffsetYRaw) : 0
     
-    // Determine accurate drop location within column
-    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
-    const y = e.clientY - rect.top
+    // Determine accurate drop location visually bound to the exact TOP edge of the element, NOT the cursor!
+    const colRect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+    let y = e.clientY - colRect.top - dragOffsetY
+    if (y < 0) y = 0 // Prevent negative top edge mappings
     
     const minutesLayout = (y / 51) * 60
-    const hour = Math.floor(minutesLayout / 60)
-    const min = Math.floor((minutesLayout % 60) / 15) * 15 // Snap seamlessly to 15 min blocks
+    
+    // Mathematically round bounds to nearest 15 mins for intuitive magnetic snapping
+    const totalMinutesSnapped = Math.round(minutesLayout / 15) * 15
+    const snappedHour = Math.floor(totalMinutesSnapped / 60)
+    const snappedMin = totalMinutesSnapped % 60
 
     const [yyyy, mm, dd] = dateStr.split('-').map(Number)
-    const dropStartDate = new Date(yyyy, mm - 1, dd, hour, min, 0)
+    const dropStartDate = new Date(yyyy, mm - 1, dd, snappedHour, snappedMin, 0)
     const dropEndDate = new Date(dropStartDate.getTime() + durationMs)
 
     try {

@@ -43,9 +43,14 @@ export default function InteractiveEvent({
     const originalStartTime = new Date(event.startTime).getTime()
     const originalEndTime = event.endTime ? new Date(event.endTime).getTime() : originalStartTime + 3600000
     const durationMs = originalEndTime - originalStartTime
+    
+    // Calculate the precise pixel offset from the top of the event where the cursor grabbed it
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+    const dragOffsetY = e.clientY - rect.top
 
     e.dataTransfer.setData('eventId', event.id)
     e.dataTransfer.setData('eventDurationMs', durationMs.toString())
+    e.dataTransfer.setData('dragOffsetY', dragOffsetY.toString())
     e.dataTransfer.effectAllowed = 'move'
     
     // Completely hide the native item natively leaving only the floating 'held' ghost
