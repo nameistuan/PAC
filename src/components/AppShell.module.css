@@ -259,10 +259,10 @@
 /* Phantom Vertical Bars for 1-day jumps */
 .floatingArrow {
   position: absolute;
-  top: 50px; /* Sit perfectly below the sleek topbar */
-  bottom: 0; /* Anchor to the bottom of the grid */
-  width: 48px; /* A comfortably thick clickable strip */
-  background-color: transparent; /* Totally invisible base */
+  top: 50px;
+  bottom: 0;
+  width: 72px; /* Nicely widened footprint */
+  background-color: transparent; 
   border: none;
   color: var(--text-secondary);
   display: flex;
@@ -271,13 +271,15 @@
   cursor: pointer;
   transition: all 0.2s ease;
   z-index: 50;
-  opacity: 0; /* Hidden natively */
+  opacity: 0; 
 }
 
-/* Hovering DIRECTLY on the phantom bar reveals it */
+/* Hovering DIRECTLY on the phantom bar reveals a frosted-glass transparent white */
 .floatingArrow:hover {
   opacity: 1;
-  background-color: var(--grid-border); /* Solidify the bar */
+  background-color: rgba(255, 255, 255, 0.4); 
+  backdrop-filter: blur(2px); /* High-end Apple-style glassmorphism */
+  -webkit-backdrop-filter: blur(2px);
   color: var(--text-primary);
 }
 
