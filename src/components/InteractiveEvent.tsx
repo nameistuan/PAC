@@ -22,6 +22,7 @@ export default function InteractiveEvent({
   const blockRef = useRef<HTMLDivElement>(null)
   
   const [dragHeight, setDragHeight] = useState(height)
+  const dragHeightRef = useRef(height) // Synchronous bypass for stale closure DOM events
   const isResizing = useRef(false)
   const startY = useRef(0)
   const startHeight = useRef(height)
@@ -29,6 +30,7 @@ export default function InteractiveEvent({
   // Sync internal drag height if server pushes a prop update
   useEffect(() => {
     setDragHeight(height)
+    dragHeightRef.current = height
   }, [height])
 
   const handleDragStart = (e: React.DragEvent) => {
@@ -78,6 +80,7 @@ export default function InteractiveEvent({
     if (newHeight < 12.75) newHeight = 12.75 // absolute min 15 mins
     
     setDragHeight(newHeight)
+    dragHeightRef.current = newHeight // Sycnhronize natively against closure scope
   }
 
   const handlePointerUp = async (e: PointerEvent) => {
@@ -85,8 +88,8 @@ export default function InteractiveEvent({
     document.removeEventListener('pointermove', handlePointerMove)
     document.removeEventListener('pointerup', handlePointerUp)
     
-    // Calculate new duration snapped strictly to 15 minute granular boundaries
-    const newDurationMins = Math.round((dragHeight / 51) * 60)
+    // Calculate new duration snapped strictly to 15 minute granular boundaries (bypass stale closure)
+    const newDurationMins = Math.round((dragHeightRef.current / 51) * 60)
     const newEndTime = new Date(new Date(event.startTime).getTime() + newDurationMins * 60000)
 
     try {
