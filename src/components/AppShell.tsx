@@ -81,6 +81,18 @@ export default function AppShell({
     }
   }
 
+  // Calculate slide direction iteratively during render
+  const prevDateRef = useRef(currentDate)
+  const slideDirectionRef = useRef<'forward'|'backward'>('forward')
+  
+  if (currentDate.getTime() > prevDateRef.current.getTime()) {
+    slideDirectionRef.current = 'forward'
+    prevDateRef.current = currentDate
+  } else if (currentDate.getTime() < prevDateRef.current.getTime()) {
+    slideDirectionRef.current = 'backward'
+    prevDateRef.current = currentDate
+  }
+
   const handlePrev = () => {
     let prev = currentDate
     if (pathname === '/') prev = subMonths(currentDate, 1)
@@ -250,7 +262,10 @@ export default function AppShell({
           </div>
         </header>
         
-        <div key={`${pathname}-${dateParam || monthParam || 'today'}`} className={styles.pageContent}>
+        <div 
+          key={`${pathname}-${dateParam || monthParam || 'today'}`} 
+          className={`${styles.pageContent} ${slideDirectionRef.current === 'forward' ? styles.slideForward : styles.slideBackward}`}
+        >
           {children}
         </div>
 
