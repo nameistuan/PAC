@@ -31,7 +31,9 @@ export default function InteractiveEvent({
   useEffect(() => {
     setDragHeight(height)
     dragHeightRef.current = height
-  }, [height])
+    // Forcefully restore visibility when the server pushes a newly positioned DND drop coordinate cleanly!
+    if (blockRef.current) blockRef.current.style.opacity = '1'
+  }, [height, top, event.startTime, event.endTime])
 
   const handleDragStart = (e: React.DragEvent) => {
     if (isResizing.current) {

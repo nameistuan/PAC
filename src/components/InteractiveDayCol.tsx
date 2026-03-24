@@ -97,7 +97,6 @@ export default function InteractiveDayCol({ dateStr, className, children }: { da
       onDragOver={handleDragOver} 
       onDragLeave={handleDragLeave} 
       onDrop={handleDrop}
-      style={{ position: 'relative' }} // ensure projection boundary constraint
     >
       {previewY !== null && (
         <div 
