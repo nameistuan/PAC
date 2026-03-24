@@ -165,10 +165,10 @@
 }
 
 .displayDate {
-  font-size: 1.15rem;
-  font-weight: 500;
+  font-size: 1.6rem;
+  font-weight: 600;
   color: var(--text-primary);
-  letter-spacing: -0.02em;
+  letter-spacing: -0.03em;
 }
 
 .todayBtn {
