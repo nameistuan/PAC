@@ -169,7 +169,11 @@ export default function InteractiveEvent({
         href={href} 
         scroll={false} 
         style={{ 
-          display: 'block', 
+          display: 'flex', 
+          flexDirection: 'row',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+          gap: '6px',
           height: '100%', 
           width: '100%', 
           color: 'inherit', 
@@ -179,8 +183,10 @@ export default function InteractiveEvent({
         }}
         draggable={false} // don't trigger native Link ghost drags concurrently
       >
-        <div style={{ fontWeight: 600, marginBottom: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{event.title}</div>
-        <div style={{ opacity: 0.8, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+        <div style={{ fontWeight: 600, flexShrink: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          {event.title}
+        </div>
+        <div style={{ opacity: 0.8, flexShrink: 0, whiteSpace: 'nowrap' }}>
           {format(new Date(event.startTime), 'h:mm a')} 
           {isMoreThanHour && event.endTime && ` - ${format(new Date(event.endTime), 'h:mm a')}`}
         </div>

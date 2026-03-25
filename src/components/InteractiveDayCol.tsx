@@ -127,16 +127,20 @@ export default function InteractiveDayCol({ dateStr, className, children }: { da
         >
           {/* Internal padding node structured exactly to mimic the <Link> bounds on standard blocks */}
           <div style={{ 
-            display: 'block', 
+            display: 'flex', 
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'flex-start',
+            gap: '6px',
             height: '100%', 
             width: '100%', 
             padding: linkPadding,
             overflow: 'hidden'
           }}>
-            <div style={{ fontWeight: 600, marginBottom: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            <div style={{ fontWeight: 600, flexShrink: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {(window as any).__activeDragTitle}
             </div>
-            <div style={{ opacity: 0.8, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            <div style={{ opacity: 0.8, flexShrink: 0, whiteSpace: 'nowrap' }}>
               {(window as any).__activeDragTime}
             </div>
           </div>
