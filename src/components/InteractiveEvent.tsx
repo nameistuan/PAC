@@ -3,6 +3,7 @@
 import React, { useRef, useState, useEffect, startTransition } from 'react'
 import { format } from 'date-fns'
 import { useRouter } from 'next/navigation'
+import { deleteEvent } from '@/lib/undoManager'
 
 export default function InteractiveEvent({ 
   event, 
@@ -48,6 +49,22 @@ export default function InteractiveEvent({
 
 
 
+  const handleKeyDown = async (e: React.KeyboardEvent) => {
+    // Only delete if not inside a text field
+    const tag = (e.target as HTMLElement).tagName
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
+    
+    if (e.key === 'Delete' || e.key === 'Backspace') {
+      e.preventDefault()
+      const success = await deleteEvent(event.id)
+      if (success) {
+        window.dispatchEvent(new CustomEvent('pac-toast', { detail: `Deleted "${event.title}" — Press ⌘Z to undo` }))
+        startTransition(() => {
+          router.refresh()
+        })
+      }
+    }
+  }
   const handleDragStart = (e: React.DragEvent) => {
     if (isResizing.current) {
       e.preventDefault()
@@ -156,6 +173,8 @@ export default function InteractiveEvent({
       ref={blockRef}
       className={className}
       data-event-block="true"
+      tabIndex={0}
+      onKeyDown={handleKeyDown}
       style={{
         top: `${top}px`,
         height: `${dragHeight}px`,

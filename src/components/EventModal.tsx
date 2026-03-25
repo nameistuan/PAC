@@ -3,6 +3,7 @@
 import { useState, useEffect, startTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import styles from './EventModal.module.css'
+import { deleteEvent } from '@/lib/undoManager'
 
 interface Project {
   id: string;
@@ -94,16 +95,16 @@ export default function EventModal({
   }
 
   const handleDelete = async () => {
-    if (!eventId || !confirm('Are you absolutely sure you want to delete this event?')) return
+    if (!eventId) return
     setIsSubmitting(true)
-    try {
-      await fetch(`/api/events/${eventId}`, { method: 'DELETE' })
+    const success = await deleteEvent(eventId)
+    if (success) {
+      window.dispatchEvent(new CustomEvent('pac-toast', { detail: `Deleted "${title}" — Press ⌘Z to undo` }))
       onClose()
       startTransition(() => {
         router.refresh()
       })
-    } catch (err) {
-      console.error(err)
+    } else {
       setIsSubmitting(false)
     }
   }

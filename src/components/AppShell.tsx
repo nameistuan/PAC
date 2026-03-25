@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, startTransition } from 'react'
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
 import { format, addMonths, subMonths, addWeeks, subWeeks, addDays, subDays, parseISO, startOfWeek, endOfWeek } from 'date-fns'
 import styles from './AppShell.module.css'
 import EventModal from './EventModal'
+import { undo, redo } from '@/lib/undoManager'
 
 export default function AppShell({ 
   children,
@@ -19,6 +20,7 @@ export default function AppShell({
   const [isSidebarOpen, setIsSidebarOpen] = useState(defaultSidebarOpen)
   const [isMounted, setIsMounted] = useState(false)
   const [isEventModalOpen, setIsEventModalOpen] = useState(false)
+  const [toast, setToast] = useState<string | null>(null)
   const searchParams = useSearchParams()
   const router = useRouter()
   const pathname = usePathname()
@@ -142,11 +144,41 @@ export default function AppShell({
         if (pName === '/') next = addMonths(cDate, 1)
         else next = addDays(cDate, 1)
         router.push(`${pName}?date=${format(next, 'yyyy-MM-dd')}`)
+      } else if ((e.metaKey || e.ctrlKey) && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault()
+        undo().then(success => {
+          if (success) {
+            showToast('Undo: Event restored')
+            startTransition(() => router.refresh())
+          }
+        })
+      } else if ((e.metaKey || e.ctrlKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
+        e.preventDefault()
+        redo().then(success => {
+          if (success) {
+            showToast('Redo: Event deleted')
+            startTransition(() => router.refresh())
+          }
+        })
       }
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [router])
+
+  const showToast = (message: string) => {
+    setToast(message)
+    setTimeout(() => setToast(null), 3500)
+  }
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail
+      if (detail) showToast(detail)
+    }
+    window.addEventListener('pac-toast', handler)
+    return () => window.removeEventListener('pac-toast', handler)
+  }, [])
   
   const isResizing = useRef(false)
 
@@ -309,6 +341,12 @@ export default function AppShell({
           initialStartTime={startTimeParam || undefined}
           initialEndTime={endTimeParam || undefined}
         />
+      )}
+
+      {toast && (
+        <div className={styles.toast}>
+          {toast}
+        </div>
       )}
     </div>
   )
