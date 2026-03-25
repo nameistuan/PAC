@@ -155,7 +155,7 @@ export default function InteractiveDayCol({ dateStr, className, children }: { da
         const endTime = formatTime(endMinutes)
 
         const params = new URLSearchParams(window.location.search)
-        params.set('date', dateStr)
+        params.set('createDate', dateStr)
         params.set('startTime', startTime)
         params.set('endTime', endTime)
         params.set('create', 'true')

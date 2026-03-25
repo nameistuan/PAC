@@ -25,6 +25,7 @@ export default function AppShell({
   
   const editEventId = searchParams.get('editEvent')
   const createParam = searchParams.get('create')
+  const createDateParam = searchParams.get('createDate')
   const startTimeParam = searchParams.get('startTime')
   const endTimeParam = searchParams.get('endTime')
   
@@ -36,6 +37,7 @@ export default function AppShell({
       const newParams = new URLSearchParams(searchParams.toString())
       newParams.delete('editEvent')
       newParams.delete('create')
+      newParams.delete('createDate')
       newParams.delete('startTime')
       newParams.delete('endTime')
       const targetQuery = newParams.toString()
@@ -303,6 +305,7 @@ export default function AppShell({
         <EventModal 
           eventId={editEventId || undefined} 
           onClose={handleCloseModal}
+          initialDate={createDateParam || undefined}
           initialStartTime={startTimeParam || undefined}
           initialEndTime={endTimeParam || undefined}
         />

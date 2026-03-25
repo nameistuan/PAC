@@ -12,17 +12,19 @@ interface Project {
 export default function EventModal({ 
   eventId, 
   onClose,
+  initialDate,
   initialStartTime,
   initialEndTime
 }: { 
   eventId?: string, 
   onClose: () => void,
+  initialDate?: string,
   initialStartTime?: string,
   initialEndTime?: string
 }) {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10))
+  const [date, setDate] = useState(initialDate || new Date().toISOString().slice(0, 10))
   const [startTime, setStartTime] = useState(initialStartTime || '09:00')
   const [endTime, setEndTime] = useState(initialEndTime || '10:00')
   const [projectId, setProjectId] = useState('')
@@ -52,10 +54,11 @@ export default function EventModal({
         })
         .catch(err => console.error("Failed to load focal event", err))
     } else {
+      if (initialDate) setDate(initialDate)
       if (initialStartTime) setStartTime(initialStartTime)
       if (initialEndTime) setEndTime(initialEndTime)
     }
-  }, [eventId, initialStartTime, initialEndTime])
+  }, [eventId, initialDate, initialStartTime, initialEndTime])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
