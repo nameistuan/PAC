@@ -49,68 +49,80 @@ export function calculateEventLayout(events: CalendarEventItem[]): EventWithLayo
   let globalZIndex = 1;
 
   for (const group of groups) {
-    const layoutState: { event: CalendarEventItem; baseFraction: number; pixelIndent: number; zIndex: number }[] = [];
+    const TOLERANCE_MS = 40 * 60000;
 
-    // Precalculate sizes of same-start groups
-    const sameStartGroups = new Map<number, number>();
-    for (const event of group) {
-      const start = new Date(event.startTime).getTime();
-      sameStartGroups.set(start, (sameStartGroups.get(start) || 0) + 1);
+    const chainId = new Map<string, number>();
+    let nextChainId = 0;
+    
+    // Assign initial isolated chains
+    for (const e of group) chainId.set(e.id, nextChainId++);
+    
+    // Transitive closure (flood fill) for close overlaps
+    for (let i = 0; i < group.length; i++) {
+      for (let j = i + 1; j < group.length; j++) {
+        const e1 = group[i], e2 = group[j];
+        const e1Start = new Date(e1.startTime).getTime();
+        const e2Start = new Date(e2.startTime).getTime();
+        
+        // Simple overlap check
+        const e1End = e1.endTime ? new Date(e1.endTime).getTime() : e1Start + 3600000;
+        const e2End = e2.endTime ? new Date(e2.endTime).getTime() : e2Start + 3600000;
+        const overlaps = e1Start < e2End && e1End > e2Start;
+
+        if (overlaps && Math.abs(e1Start - e2Start) <= TOLERANCE_MS) {
+          const id1 = chainId.get(e1.id)!;
+          const id2 = chainId.get(e2.id)!;
+          for (const [k, v] of Array.from(chainId.entries())) {
+            if (v === id2) chainId.set(k, id1);
+          }
+        }
+      }
     }
-    const sameStartCurrentRank = new Map<number, number>();
+
+    const layoutState: { event: CalendarEventItem; color: number; pixelIndent: number; chain: number; zIndex: number }[] = [];
+    const chainMaxColor = new Map<number, number>();
 
     for (const event of group) {
       const eStart = new Date(event.startTime).getTime();
       const eEnd = event.endTime ? new Date(event.endTime).getTime() : eStart + 3600000;
+      const myChain = chainId.get(event.id)!;
 
-      const groupSize = sameStartGroups.get(eStart) || 1;
-      const currentRank = sameStartCurrentRank.get(eStart) || 0;
-      sameStartCurrentRank.set(eStart, currentRank + 1);
-
-      let overlapping = layoutState.filter(s => {
-        const sStart = new Date(s.event.startTime).getTime();
-        const sEnd = s.event.endTime ? new Date(s.event.endTime).getTime() : sStart + 3600000;
-        return eStart < sEnd && eEnd > sStart;
-      });
-
-      let baseFraction = 0;
-      let pixelIndent = 0;
-
-      if (overlapping.length > 0) {
-        // Find if we share start time with any overlap
-        const sameStartOverlap = overlapping.find(s => new Date(s.event.startTime).getTime() === eStart);
-        
-        if (sameStartOverlap) {
-          // Exact same start time -> split the fraction
-          const root = sameStartOverlap;
-          baseFraction = root.baseFraction + (currentRank / groupSize) * (1 - root.baseFraction);
-          pixelIndent = root.pixelIndent;
-        } else {
-          // Waterfall -> stack pixels based on max overlapped inset
-          overlapping.sort((a, b) => {
-            const aScore = a.baseFraction * 1000 + a.pixelIndent;
-            const bScore = b.baseFraction * 1000 + b.pixelIndent;
-            return bScore - aScore;
-          });
-          const maxOverlap = overlapping[0];
-          baseFraction = maxOverlap.baseFraction;
-          pixelIndent = maxOverlap.pixelIndent + 38; // Cascade 38px for legible text
-        }
+      let color = 0;
+      while(true) {
+        const conflict = layoutState.some(o => {
+          const oStart = new Date(o.event.startTime).getTime();
+          const oEnd = o.event.endTime ? new Date(o.event.endTime).getTime() : oStart + 3600000;
+          const overlaps = eStart < oEnd && eEnd > oStart;
+          return o.color === color && overlaps && o.chain === myChain;
+        });
+        if (!conflict) break;
+        color++;
       }
 
-      layoutState.push({
-        event,
-        baseFraction,
-        pixelIndent,
-        zIndex: globalZIndex++
+      // Calculate cascade if we share a color with an overlapping event from a DIFFERENT chain
+      let pixelIndent = 0;
+      const cascadingOver = layoutState.filter(o => {
+        const oStart = new Date(o.event.startTime).getTime();
+        const oEnd = o.event.endTime ? new Date(o.event.endTime).getTime() : oStart + 3600000;
+        const overlaps = eStart < oEnd && eEnd > oStart;
+        return o.color === color && overlaps;
       });
+
+      if (cascadingOver.length > 0) {
+        pixelIndent = Math.max(...cascadingOver.map(o => o.pixelIndent)) + 38;
+      }
+
+      layoutState.push({ event, color, pixelIndent, chain: myChain, zIndex: globalZIndex++ });
+      chainMaxColor.set(myChain, Math.max(chainMaxColor.get(myChain) || 0, color + 1));
     }
 
     for (const item of layoutState) {
+      const cols = chainMaxColor.get(item.chain)!;
+      const baseFraction = item.color / cols;
       result.push({
         ...item.event,
-        assignedLeft: `calc(${item.baseFraction * 100}% + ${item.pixelIndent}px + 2px)`,
-        isLayoutIndented: item.baseFraction > 0 || item.pixelIndent > 0,
+        assignedLeft: `calc(${baseFraction * 100}% + ${item.pixelIndent}px + 2px)`,
+        isLayoutIndented: baseFraction > 0 || item.pixelIndent > 0,
         zIndex: item.zIndex
       });
     }
