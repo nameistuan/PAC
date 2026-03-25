@@ -200,9 +200,14 @@ export default function InteractiveEvent({
       draggable
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
+      onClick={(e) => {
+        // Single click: just focus/select the event block
+        e.stopPropagation()
+        blockRef.current?.focus()
+      }}
+      onDoubleClick={() => router.push(href, { scroll: false })}
     >
       <div 
-        onClick={() => router.push(href, { scroll: false })}
         style={{ 
           display: 'flex', 
           flexDirection: is30MinOrLess ? 'row' : 'column',
