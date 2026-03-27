@@ -106,11 +106,6 @@
   opacity: 0.9;
 }
 
-.eventBlock:focus {
-  outline: 2px solid var(--primary-color);
-  outline-offset: -1px;
-}
-
 .eventTitle {
   font-weight: 600;
   white-space: nowrap;
