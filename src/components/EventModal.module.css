@@ -6,20 +6,22 @@
   height: 100vh;
   background-color: transparent;
   z-index: 1000;
-  animation: fadeIn 0.12s ease-out;
+  animation: fadeIn 0.2s ease-out;
 }
 
 .modalContent {
   position: fixed;
   background-color: var(--surface-color);
-  border-radius: 10px;
-  width: 360px;
-  max-height: 80vh;
+  border-radius: 12px;
+  width: 440px;
+  max-width: 90vw;
+  max-height: 85vh;
   overflow-y: auto;
-  box-shadow: 0 20px 60px -15px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(0,0,0,0.08);
+  box-shadow: 0 24px 38px 3px rgba(0,0,0,0.14), 0 9px 46px 8px rgba(0,0,0,0.12), 0 11px 15px -7px rgba(0,0,0,0.2);
   display: flex;
   flex-direction: column;
   animation: popIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  outline: none;
 }
 
 @keyframes fadeIn {
@@ -28,262 +30,277 @@
 }
 
 @keyframes popIn {
-  from { transform: scale(0.96); opacity: 0; }
+  from { transform: scale(0.95); opacity: 0; }
   to { transform: scale(1); opacity: 1; }
 }
 
-/* Header — compact with close X */
-.modalHeader {
-  padding: 1rem 1.25rem 0.5rem;
+/* Scrollbar styling for a premium feel */
+.modalContent::-webkit-scrollbar {
+  width: 8px;
+}
+.modalContent::-webkit-scrollbar-thumb {
+  background: var(--grid-border);
+  border-radius: 4px;
+}
+
+/* Top Icon Bar (Google Style) */
+.topIconBar {
+  padding: 0.75rem 0.75rem 0.25rem;
   display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.iconBtn, .closeIconBtn {
+  background: transparent;
+  border: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--text-secondary);
+  transition: background-color 0.2s, color 0.1s;
+}
+
+.iconBtn:hover {
+  background-color: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+.closeIconBtn:hover {
+  background-color: var(--surface-hover);
+  color: #ef4444; /* red hint on close or just primary? Google uses gray */
+}
+
+/* Modal Body */
+.modalBody {
+  padding: 0.5rem 1.5rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+/* Title Input Section */
+.titleSection {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.tagIndicator {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.05);
+  transition: background-color 0.3s ease;
 }
 
 .titleInput {
-  font-size: 1.1rem;
-  font-weight: 600;
+  flex: 1;
+  font-size: 1.5rem;
+  font-weight: 500;
   color: var(--text-primary);
   border: none;
   background: transparent;
-  width: 100%;
-  padding: 0;
+  padding: 0.25rem 0;
   outline: none;
-  letter-spacing: -0.01em;
+  border-bottom: 2px solid transparent;
+  transition: border-bottom-color 0.2s;
+}
+
+.titleInput:focus {
+  border-bottom-color: var(--primary-color);
 }
 
 .titleInput::placeholder {
   color: var(--text-secondary);
-  opacity: 0.6;
-}
-
-.closeButton {
-  background: transparent;
-  border: none;
-  font-size: 1.4rem;
-  line-height: 1;
-  cursor: pointer;
-  color: var(--text-secondary);
-  transition: color 0.1s;
-  padding: 0 0 0 0.5rem;
-  flex-shrink: 0;
-}
-
-.closeButton:hover {
-  color: var(--text-primary);
-}
-
-/* Body */
-.modalBody {
-  padding: 0.5rem 1.25rem 1rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-/* Inline icon rows */
-.fieldRow {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-}
-
-.fieldIcon {
-  width: 18px;
-  height: 18px;
-  flex-shrink: 0;
-  color: var(--text-secondary);
-  opacity: 0.6;
-}
-
-.fieldRow input,
-.fieldRow textarea {
-  flex: 1;
-  background: transparent;
-  border: none;
-  border-bottom: 1px solid transparent;
-  color: var(--text-primary);
-  font-size: 0.85rem;
-  font-family: inherit;
-  padding: 0.35rem 0;
-  outline: none;
-  transition: border-color 0.15s;
-}
-
-.fieldRow input:focus,
-.fieldRow textarea:focus {
-  border-bottom-color: var(--primary-color);
-}
-
-.fieldRow input::placeholder,
-.fieldRow textarea::placeholder {
-  color: var(--text-secondary);
   opacity: 0.5;
 }
 
-/* Time row */
-.timeRow {
+/* Field Row (Icon + Content) */
+.fieldRow {
   display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.iconContainer {
+  width: 24px;
+  display: flex;
+  justify-content: center;
+  color: var(--text-secondary);
+}
+
+/* Time & Date Inputs */
+.timeInputsWrapper {
+  display: flex;
+  flex-direction: column;
   gap: 0.5rem;
   flex: 1;
 }
 
-.timeRow input[type="date"],
-.timeRow input[type="time"] {
-  flex: 1;
+.timeInputsWrapper input[type="date"] {
+  border: none;
   background: transparent;
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
+  font-size: 0.95rem;
+  font-weight: 500;
   color: var(--text-primary);
-  font-size: 0.8rem;
-  font-family: inherit;
-  padding: 0.35rem 0.5rem;
+  padding: 0;
+  cursor: pointer;
   outline: none;
-  transition: border-color 0.15s;
 }
 
-.timeRow input[type="date"]:focus,
-.timeRow input[type="time"]:focus {
+.timeSelects {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.timeSelects input[type="time"] {
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.9rem;
+  background: transparent;
+  color: var(--text-primary);
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.timeSelects input[type="time"]:focus {
   border-color: var(--primary-color);
 }
 
-.timeSeparator {
+.timeSep {
   color: var(--text-secondary);
-  font-size: 0.8rem;
-  display: flex;
-  align-items: center;
-  opacity: 0.5;
+  font-weight: 500;
 }
 
-/* Notes textarea */
+/* Inline Inputs (Location, etc) */
+.inlineInput {
+  flex: 1;
+  border: none;
+  border-bottom: 1px solid var(--border-color);
+  background: transparent;
+  padding: 0.5rem 0;
+  font-size: 0.95rem;
+  color: var(--text-primary);
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.inlineInput:focus {
+  border-color: var(--primary-color);
+}
+
+/* Notes Area */
 .notesArea {
   flex: 1;
-  background: transparent;
-  border: none;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 0.75rem;
+  font-size: 0.95rem;
+  line-height: 1.5;
   color: var(--text-primary);
-  font-size: 0.85rem;
-  font-family: inherit;
-  padding: 0.35rem 0;
+  background: var(--background-color);
   outline: none;
   resize: vertical;
-  min-height: 60px;
-  max-height: 200px;
-  border-bottom: 1px solid transparent;
-  transition: border-color 0.15s;
+  min-height: 80px;
+  transition: border-color 0.2s, box-shadow 0.2s;
 }
 
 .notesArea:focus {
-  border-bottom-color: var(--primary-color);
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
 }
 
-.notesArea::placeholder {
-  color: var(--text-secondary);
-  opacity: 0.5;
-}
-
-/* Tag selector row */
-.tagSection {
+/* Task Carousel (Project Selection) */
+.tagCarousel {
   display: flex;
-  align-items: center;
-  gap: 0.6rem;
-}
-
-.tagRow {
-  display: flex;
-  gap: 0.4rem;
+  gap: 0.5rem;
   overflow-x: auto;
-  flex: 1;
+  padding: 0.25rem 0;
   scrollbar-width: none;
   -ms-overflow-style: none;
-  padding: 2px 0;
+  flex: 1;
 }
 
-.tagRow::-webkit-scrollbar {
+.tagCarousel::-webkit-scrollbar {
   display: none;
 }
 
 .tagPill {
   display: flex;
   align-items: center;
-  gap: 0.35rem;
-  padding: 0.3rem 0.7rem;
+  gap: 0.5rem;
+  padding: 0.4rem 1rem;
   border-radius: 9999px;
+  background: var(--surface-hover);
   border: 1px solid var(--border-color);
-  background: transparent;
   color: var(--text-secondary);
-  font-size: 0.75rem;
+  font-size: 0.85rem;
   font-weight: 500;
   cursor: pointer;
   white-space: nowrap;
-  flex-shrink: 0;
-  transition: all 0.15s ease;
+  transition: all 0.2s;
 }
 
 .tagPill:hover {
-  border-color: var(--text-secondary);
+  background-color: var(--grid-border);
+  color: var(--text-primary);
 }
 
 .tagPillActive {
-  border-color: currentColor;
+  background-color: transparent;
   font-weight: 600;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
 }
 
 .tagDot {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
   flex-shrink: 0;
 }
 
-/* Footer */
+/* Footer (Save Button) */
 .modalFooter {
-  padding: 0.75rem 1.25rem;
-  border-top: 1px solid var(--border-color);
+  padding: 1.25rem 1.5rem;
   display: flex;
   justify-content: flex-end;
-  gap: 0.6rem;
-  background-color: var(--background-color);
-  border-radius: 0 0 10px 10px;
-}
-
-.cancelBtn {
-  background: transparent;
-  border: none;
-  padding: 0.45rem 0.9rem;
-  border-radius: 6px;
-  cursor: pointer;
-  font-weight: 500;
-  font-size: 0.8rem;
-  color: var(--text-secondary);
-  transition: background-color 0.1s, color 0.1s;
-}
-
-.cancelBtn:hover {
-  background-color: var(--surface-hover);
-  color: var(--text-primary);
-}
-
-.deleteBtn {
-  color: #ef4444 !important;
-}
-
-.deleteBtn:hover {
-  background-color: rgba(239, 68, 68, 0.08) !important;
+  border-top: 1px solid var(--border-color);
 }
 
 .saveBtn {
   background-color: var(--primary-color);
   color: white;
   border: none;
-  padding: 0.45rem 1.1rem;
-  border-radius: 6px;
-  cursor: pointer;
+  padding: 0.6rem 2rem;
+  border-radius: 8px;
   font-weight: 600;
-  font-size: 0.8rem;
-  transition: background-color 0.2s;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: transform 0.1s, background-color 0.2s;
+  box-shadow: 0 4px 6px -1px rgba(37,99,235, 0.3), 0 2px 4px -1px rgba(37,99,235, 0.2);
 }
 
 .saveBtn:hover {
   background-color: var(--primary-hover);
+  transform: translateY(-1px);
+}
+
+.saveBtn:active {
+  transform: translateY(0);
+}
+
+.saveBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
 }

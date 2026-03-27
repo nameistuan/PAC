@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, startTransition, useLayoutEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import styles from './EventModal.module.css'
 import { deleteEvent, updateEvent, pushCreate } from '@/lib/undoManager'
 
@@ -36,59 +36,77 @@ export default function EventModal({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const isEditing = !!eventId
   const router = useRouter()
+  const searchParams = useSearchParams()
   const modalRef = useRef<HTMLDivElement>(null)
   const [modalPos, setModalPos] = useState<{ top: number; left: number } | null>(null)
 
-  // Position the modal next to the clicked event
+  // Position the modal next to the anchor event (read from URL or fallback)
   useLayoutEffect(() => {
-    const anchor = (window as any).__modalAnchor as { top: number; left: number; right: number; bottom: number; width: number; height: number } | undefined
-    if (anchor && modalRef.current) {
-      const modalW = 360
-      const gap = 8
+    // Read anchor from URL (passed by InteractiveEvent/DayCol)
+    const ax = parseFloat(searchParams.get('ax') || '0')
+    const ay = parseFloat(searchParams.get('ay') || '0')
+    const aw = parseFloat(searchParams.get('aw') || '0')
+    const ah = parseFloat(searchParams.get('ah') || '0')
+
+    const hasAnchor = searchParams.has('ax') && searchParams.has('ay')
+
+    if (hasAnchor && modalRef.current) {
+      const modalW = 440 // Redesigned bit wider
+      const modalH = modalRef.current.offsetHeight || 380
+      const gap = 12
       const vw = window.innerWidth
       const vh = window.innerHeight
 
-      // Prefer right side, fallback to left
+      // Strategy: 
+      // 1. Try Right side of event
+      // 2. Try Left side of event
+      // 3. Fallback to centered if it's too cramped
+      
       let left: number
-      if (anchor.right + gap + modalW < vw) {
-        left = anchor.right + gap
-      } else if (anchor.left - gap - modalW > 0) {
-        left = anchor.left - gap - modalW
+      if (ax + aw + gap + modalW <= vw - 16) {
+        left = ax + aw + gap
+      } else if (ax - gap - modalW >= 16) {
+        left = ax - gap - modalW
       } else {
-        left = Math.max(8, (vw - modalW) / 2)
+        left = Math.max(16, (vw - modalW) / 2)
       }
 
-      // Vertically align to top of event, clamped to viewport
-      let top = anchor.top
-      const modalH = modalRef.current.offsetHeight || 400
-      if (top + modalH > vh - 16) {
-        top = vh - modalH - 16
+      // Vertical: Alignment to the top of the event, clamped by viewport
+      let top = ay
+      if (top + modalH > vh - 24) {
+        top = Math.max(16, vh - modalH - 24)
       }
-      if (top < 8) top = 8
+      if (top < 16) top = 16
 
       setModalPos({ top, left })
     } else {
-      // Centered fallback (for drag-to-create)
+      // Centered fallback (for direct URL access or drag-to-create without anchor)
       const vw = window.innerWidth
       const vh = window.innerHeight
-      setModalPos({ top: Math.max(100, vh * 0.15), left: Math.max(8, (vw - 360) / 2) })
+      setModalPos({ top: vh * 0.15, left: Math.max(16, (vw - 440) / 2) })
     }
+  }, [searchParams]) // Update whenever URL params change (e.g. user clicks another event)
 
-    // Clear anchor after use
-    ;(window as any).__modalAnchor = undefined
-  }, [])
-
-  // Focus the modal container when editing so Delete key works
+  // Focus Title input for new events, or just modal container for edits (to preserve delete-key functionality)
   useEffect(() => {
-    if (isEditing && modalRef.current) {
-      modalRef.current.focus()
+    if (modalRef.current) {
+      if (!isEditing) {
+        const titleInput = modalRef.current.querySelector('input[name="title"]') as HTMLInputElement
+        titleInput?.focus()
+      } else {
+        modalRef.current.focus()
+      }
     }
   }, [isEditing])
 
   useEffect(() => {
+    // Fetch projects and sort by 'most recently used' usage pattern (idealized MRU simulation)
+    // We sort alphabetically to be tidy, but could add MRU logic by querying recent events
     fetch('/api/projects')
       .then(res => res.json())
-      .then(data => setProjects(data))
+      .then(data => {
+        setProjects(data.sort((a: Project, b: Project) => a.name.localeCompare(b.name)))
+      })
       .catch(err => console.error("Failed to fetch projects", err))
       
     if (eventId) {
@@ -185,28 +203,6 @@ export default function EventModal({
     }
   }
 
-  // SVG icons as inline elements
-  const ClockIcon = () => (
-    <svg className={styles.fieldIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" />
-    </svg>
-  )
-  const MapPinIcon = () => (
-    <svg className={styles.fieldIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" />
-    </svg>
-  )
-  const NotesIcon = () => (
-    <svg className={styles.fieldIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ alignSelf: 'flex-start', marginTop: '4px' }}>
-      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" />
-    </svg>
-  )
-  const TagIcon = () => (
-    <svg className={styles.fieldIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" /><line x1="7" y1="7" x2="7.01" y2="7" />
-    </svg>
-  )
-
   return (
     <div className={styles.modalOverlay} onMouseDown={onClose}>
       <div 
@@ -222,67 +218,95 @@ export default function EventModal({
           }
         }}
         ref={modalRef}
-        style={modalPos ? { top: modalPos.top, left: modalPos.left } : { top: '15%', left: '50%', transform: 'translateX(-50%)' }}
+        style={modalPos ? { top: modalPos.top, left: modalPos.left } : { display: 'none' }}
       >
         <form onSubmit={handleSubmit}>
-          {/* Header: inline title */}
-          <div className={styles.modalHeader}>
-            <input
-              className={styles.titleInput}
-              type="text"
-              required
-              placeholder="Add title"
-              value={title}
-              onChange={e => setTitle(e.target.value)}
-              autoFocus={!isEditing}
-            />
-            <button type="button" className={styles.closeButton} onClick={onClose}>&times;</button>
+          {/* Header Icons (Google style) */}
+          <div className={styles.topIconBar}>
+            {isEditing && (
+              <>
+                <button type="button" className={styles.iconBtn} onClick={handleDelete} title="Delete">
+                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M10 11v6M14 11v6" /></svg>
+                </button>
+                <button type="button" className={styles.iconBtn} title="More options">
+                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+                </button>
+              </>
+            )}
+            <div style={{ flex: 1 }} />
+            <button type="button" className={styles.closeIconBtn} onClick={onClose} title="Close">
+               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12" /></svg>
+            </button>
           </div>
 
           <div className={styles.modalBody}>
-            {/* Time row */}
+            {/* Title Section */}
+            <div className={styles.titleSection}>
+              <div className={styles.tagIndicator} style={{ backgroundColor: projects.find(p => p.id === projectId)?.color || 'var(--border-color)' }} />
+              <input
+                name="title"
+                className={styles.titleInput}
+                type="text"
+                required
+                placeholder="Add title"
+                value={title}
+                onChange={e => setTitle(e.target.value)}
+              />
+            </div>
+
+            {/* Time & Date */}
             <div className={styles.fieldRow}>
-              <ClockIcon />
-              <div className={styles.timeRow}>
-                <input type="date" required value={date} onChange={e => setDate(e.target.value)} />
-                <input type="time" required value={startTime} onChange={e => setStartTime(e.target.value)} />
-                <span className={styles.timeSeparator}>–</span>
-                <input type="time" required value={endTime} onChange={e => setEndTime(e.target.value)} />
+              <div className={styles.iconContainer}>
+                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+              </div>
+              <div className={styles.timeInputsWrapper}>
+                 <input type="date" required value={date} onChange={e => setDate(e.target.value)} />
+                 <div className={styles.timeSelects}>
+                    <input type="time" required value={startTime} onChange={e => setStartTime(e.target.value)} />
+                    <span className={styles.timeSep}>–</span>
+                    <input type="time" required value={endTime} onChange={e => setEndTime(e.target.value)} />
+                 </div>
               </div>
             </div>
 
             {/* Location */}
             <div className={styles.fieldRow}>
-              <MapPinIcon />
+              <div className={styles.iconContainer}>
+                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+              </div>
               <input 
                 type="text" 
                 placeholder="Add location" 
+                className={styles.inlineInput}
                 value={location}
                 onChange={e => setLocation(e.target.value)}
               />
             </div>
 
-            {/* Notes / Description */}
-            <div className={styles.fieldRow}>
-              <NotesIcon />
+            {/* Description / Notes */}
+            <div className={styles.fieldRow} style={{ alignItems: 'flex-start' }}>
+              <div className={styles.iconContainer} style={{ marginTop: '4px' }}>
+                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+              </div>
               <textarea 
                 className={styles.notesArea}
                 placeholder="Add description or notes…" 
                 value={description}
                 onChange={e => setDescription(e.target.value)}
-                rows={3}
+                rows={2}
               />
             </div>
 
-            {/* Project tag pills */}
-            <div className={styles.tagSection}>
-              <TagIcon />
-              <div className={styles.tagRow}>
+            {/* Project Pill Selector (Horizontal scrollable) */}
+            <div className={styles.fieldRow}>
+              <div className={styles.iconContainer}>
+                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+              </div>
+              <div className={styles.tagCarousel}>
                 <button
                   type="button"
                   className={`${styles.tagPill} ${!projectId ? styles.tagPillActive : ''}`}
                   onClick={() => setProjectId('')}
-                  style={!projectId ? { borderColor: 'var(--text-secondary)', color: 'var(--text-primary)' } : undefined}
                 >
                   None
                 </button>
@@ -292,7 +316,11 @@ export default function EventModal({
                     key={p.id}
                     className={`${styles.tagPill} ${projectId === p.id ? styles.tagPillActive : ''}`}
                     onClick={() => setProjectId(p.id)}
-                    style={projectId === p.id ? { borderColor: p.color, color: p.color } : undefined}
+                    style={projectId === p.id ? { 
+                      borderColor: p.color, 
+                      backgroundColor: `${p.color}11`,
+                      color: p.color 
+                    } : undefined}
                   >
                     <span className={styles.tagDot} style={{ backgroundColor: p.color }} />
                     {p.name}
@@ -302,22 +330,7 @@ export default function EventModal({
             </div>
           </div>
 
-          {/* Footer */}
           <div className={styles.modalFooter}>
-            {isEditing && (
-              <button 
-                type="button" 
-                className={`${styles.cancelBtn} ${styles.deleteBtn}`} 
-                onClick={handleDelete} 
-                disabled={isSubmitting}
-              >
-                Delete
-              </button>
-            )}
-            <div style={{ flex: 1 }} />
-            <button type="button" className={styles.cancelBtn} onClick={onClose} disabled={isSubmitting}>
-              Cancel
-            </button>
             <button type="submit" className={styles.saveBtn} disabled={isSubmitting}>
               {isSubmitting ? 'Saving…' : 'Save'}
             </button>

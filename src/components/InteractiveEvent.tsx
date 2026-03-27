@@ -205,12 +205,14 @@ export default function InteractiveEvent({
       onClick={(e) => {
         e.stopPropagation()
         if (justResized.current) return
-        // Store click anchor for contextual modal positioning
+        
+        // Use local positioning for robustness across Next.js transitions
+        let anchorParams = ''
         if (blockRef.current) {
           const rect = blockRef.current.getBoundingClientRect()
-          ;(window as any).__modalAnchor = { top: rect.top, left: rect.left, right: rect.right, bottom: rect.bottom, width: rect.width, height: rect.height }
+          anchorParams = `&ax=${Math.round(rect.left)}&ay=${Math.round(rect.top)}&aw=${Math.round(rect.width)}&ah=${Math.round(rect.height)}`
         }
-        router.push(href, { scroll: false })
+        router.push(`${href}${anchorParams}`, { scroll: false })
       }}
     >
       <div 

@@ -160,6 +160,16 @@ export default function InteractiveDayCol({ dateStr, className, children }: { da
         params.set('endTime', endTime)
         params.set('create', 'true')
         
+        // Pass anchor coordinates for contextual positioning
+        // Calculate coordinate from the draw rect correctly for Next.js routing
+        if (colRef.current) {
+          const colRect = colRef.current.getBoundingClientRect()
+          params.set('ax', Math.round(colRect.left + 2).toString())
+          params.set('ay', Math.round(colRect.top + top).toString())
+          params.set('aw', Math.round(colRect.width - 8).toString())
+          params.set('ah', Math.round(durationPx).toString())
+        }
+        
         router.push(`${window.location.pathname}?${params.toString()}`, { scroll: false })
       }
 
