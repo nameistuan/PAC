@@ -39,29 +39,23 @@ export default function EventModal({
   const searchParams = useSearchParams()
   const modalRef = useRef<HTMLDivElement>(null)
   const [modalPos, setModalPos] = useState<{ top: number; left: number } | null>(null)
-
   // Position the modal next to the anchor event (read from URL or fallback)
-  useLayoutEffect(() => {
+  const calculatePosition = () => {
     // Read anchor from URL (passed by InteractiveEvent/DayCol)
     const ax = parseFloat(searchParams.get('ax') || '0')
     const ay = parseFloat(searchParams.get('ay') || '0')
     const aw = parseFloat(searchParams.get('aw') || '0')
     const ah = parseFloat(searchParams.get('ah') || '0')
-
     const hasAnchor = searchParams.has('ax') && searchParams.has('ay')
 
     if (hasAnchor && modalRef.current) {
-      const modalW = 440 // Redesigned bit wider
-      const modalH = modalRef.current.offsetHeight || 380
+      const modalW = modalRef.current.offsetWidth || 440
+      const modalH = modalRef.current.offsetHeight || 400
       const gap = 12
-      const vw = window.innerWidth
-      const vh = window.innerHeight
+      const vw = document.documentElement.clientWidth
+      const vh = document.documentElement.clientHeight
 
-      // Strategy: 
-      // 1. Try Right side of event
-      // 2. Try Left side of event
-      // 3. Fallback to centered if it's too cramped
-      
+      // Horizontal: Prefer right, then left, then center
       let left: number
       if (ax + aw + gap + modalW <= vw - 16) {
         left = ax + aw + gap
@@ -71,21 +65,43 @@ export default function EventModal({
         left = Math.max(16, (vw - modalW) / 2)
       }
 
-      // Vertical: Alignment to the top of the event, clamped by viewport
+      // Vertical: Prefer top alignment with event, but clamp to viewport
       let top = ay
+      // If modal is taller than remaining space, shift up
       if (top + modalH > vh - 24) {
         top = Math.max(16, vh - modalH - 24)
       }
+      // If still too high, clamp to top
       if (top < 16) top = 16
+
+      // Final safety clamp for right edge
+      if (left + modalW > vw - 16) {
+        left = Math.max(16, vw - modalW - 16)
+      }
 
       setModalPos({ top, left })
     } else {
-      // Centered fallback (for direct URL access or drag-to-create without anchor)
-      const vw = window.innerWidth
-      const vh = window.innerHeight
+      // Centered fallback
+      const vw = document.documentElement.clientWidth
+      const vh = document.documentElement.clientHeight
       setModalPos({ top: vh * 0.15, left: Math.max(16, (vw - 440) / 2) })
     }
-  }, [searchParams]) // Update whenever URL params change (e.g. user clicks another event)
+  }
+
+  // Monitor size changes (like when projects/notes load) and window resizing
+  useLayoutEffect(() => {
+    calculatePosition()
+    
+    if (modalRef.current) {
+      const observer = new ResizeObserver(() => calculatePosition())
+      observer.observe(modalRef.current)
+      window.addEventListener('resize', calculatePosition)
+      return () => {
+        observer.disconnect()
+        window.removeEventListener('resize', calculatePosition)
+      }
+    }
+  }, [searchParams, projects, title, description]) // Re-run when content might change size
 
   // Focus Title input for new events, or just modal container for edits (to preserve delete-key functionality)
   useEffect(() => {
