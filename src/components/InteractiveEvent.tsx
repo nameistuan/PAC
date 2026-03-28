@@ -33,6 +33,7 @@ export default function InteractiveEvent({
   const justResized = useRef(false)
   const startY = useRef(0)
   const startHeight = useRef(height)
+  const currentTargetEndTime = useRef<Date | null>(null)
 
   const isMoreThanHour = dragHeight > 55 // > 1 hr
   const is30MinOrLess = dragHeight <= 27 // <= 30 mins
@@ -127,6 +128,7 @@ export default function InteractiveEvent({
     isResizing.current = true
     startY.current = e.clientY
     startHeight.current = dragHeight
+    currentTargetEndTime.current = new Date(event.endTime) // Default to original
     
     document.addEventListener('pointermove', handlePointerMove)
     document.addEventListener('pointerup', handlePointerUp)
@@ -134,23 +136,57 @@ export default function InteractiveEvent({
 
   const handlePointerMove = (e: PointerEvent) => {
     if (!isResizing.current) return
-    const deltaY = e.clientY - startY.current
     
-    // Snap cleanly to 15-minute intervals (51px / 4 = 12.75px)
-    const snappedDeltaY = Math.round(deltaY / 12.75) * 12.75
-    
-    let newHeight = startHeight.current + snappedDeltaY
-    
-    // Clamp to min 15 mins (12.75px)
-    if (newHeight < 12.75) newHeight = 12.75
-    
-    // Clamp to end of the current day (midnight)
-    // 24 hours * 51px/hour - top = pixels remaining until midnight
-    const maxPx = (24 * 51) - top
-    if (newHeight > maxPx) newHeight = maxPx
-    
-    setDragHeight(newHeight)
-    dragHeightRef.current = newHeight // Sycnhronize natively against closure scope
+    // Find column under cursor for cross-day resizing
+    // We walk up to find the data-date attribute
+    let el = document.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null
+    while (el && !el.hasAttribute('data-date')) {
+      el = el.parentElement
+    }
+
+    const targetDateStr = el?.getAttribute('data-date')
+    const originalDateStr = format(new Date(event.startTime), 'yyyy-MM-dd')
+    const isDifferentDay = targetDateStr && targetDateStr !== originalDateStr
+
+    if (!isDifferentDay) {
+      // Normal single-day resize: Delta from initial start point
+      const deltaY = e.clientY - startY.current
+      const snappedDeltaY = Math.round(deltaY / 12.75) * 12.75
+      let newHeight = startHeight.current + snappedDeltaY
+      if (newHeight < 12.75) newHeight = 12.75
+      
+      const maxPx = (24 * 51) - top
+      if (newHeight > maxPx) newHeight = maxPx
+      
+      setDragHeight(newHeight)
+      dragHeightRef.current = newHeight
+      
+      // Compute logical time for logical update on release
+      const totalMins = Math.round((newHeight / 51) * 60)
+      currentTargetEndTime.current = new Date(new Date(event.startTime).getTime() + totalMins * 60000)
+    } else {
+      // Multi-day resize!
+      // 1. Fill the original day to midnight
+      setDragHeight((24 * 51) - top)
+      dragHeightRef.current = (24 * 51) - top
+
+      // 2. Calculate time on the NEW day
+      if (el) {
+        const rect = el.getBoundingClientRect()
+        const y = e.clientY - rect.top
+        const minutesOnNewDay = Math.max(0, Math.round(((y / 51) * 60) / 15) * 15)
+        
+        const [yyyy, mm, dd] = targetDateStr!.split('-').map(Number)
+        const targetDayEnd = new Date(yyyy, mm - 1, dd)
+        targetDayEnd.setHours(Math.floor(minutesOnNewDay / 60), minutesOnNewDay % 60, 0, 0)
+        
+        currentTargetEndTime.current = targetDayEnd
+        
+        // Visual feedback via toast during drag
+        const timeStr = format(targetDayEnd, 'MMM d, h:mm a')
+        window.dispatchEvent(new CustomEvent('pac-toast', { detail: `Target: ${timeStr}` }))
+      }
+    }
   }
 
   const handlePointerUp = async (e: PointerEvent) => {
@@ -160,20 +196,20 @@ export default function InteractiveEvent({
     document.removeEventListener('pointermove', handlePointerMove)
     document.removeEventListener('pointerup', handlePointerUp)
     
-    // Calculate new duration snapped strictly to 15 minute granular boundaries (bypass stale closure)
-    const newDurationMins = Math.round((dragHeightRef.current / 51) * 60)
-    const newEndTime = new Date(new Date(event.startTime).getTime() + newDurationMins * 60000)
+    if (!currentTargetEndTime.current) return
 
     try {
-      const label = await updateEvent(event.id, { endTime: newEndTime.toISOString() })
+      const label = await updateEvent(event.id, { endTime: currentTargetEndTime.current.toISOString() })
       if (label) {
-        window.dispatchEvent(new CustomEvent('pac-toast', { detail: `Resized "${label}" — Press ⌘Z to undo` }))
+        window.dispatchEvent(new CustomEvent('pac-toast', { detail: `Resized "${label}" to ${format(currentTargetEndTime.current, 'MMM d, h:mm a')}` }))
       }
       startTransition(() => {
         router.refresh()
       })
     } catch (err) {
-      console.error("Failed to commit resize", err)
+      console.error("Resize mutation failed - data integrity preserved.", err)
+      setDragHeight(height)
+      dragHeightRef.current = height
     }
   }
 

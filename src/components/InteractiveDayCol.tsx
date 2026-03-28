@@ -197,6 +197,8 @@ export default function InteractiveDayCol({ dateStr, className, children }: { da
       onDragLeave={handleDragLeave} 
       onDrop={handleDrop}
       onMouseDown={handleMouseDown}
+      data-date={dateStr}
+      data-day-col="true"
     >
       {isCreating && createStartTop !== null && (
         <div 
