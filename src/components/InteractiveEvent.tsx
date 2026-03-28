@@ -149,6 +149,11 @@ export default function InteractiveEvent({
     const isDifferentDay = targetDateStr && targetDateStr !== originalDateStr
 
     if (!isDifferentDay) {
+      // Clear any multi-day previews when returning to original day
+      if (currentTargetEndTime.current && currentTargetEndTime.current.getDate() !== new Date(event.startTime).getDate()) {
+        window.dispatchEvent(new CustomEvent('pac-resize-end'))
+      }
+
       // Normal single-day resize: Delta from initial start point
       const deltaY = e.clientY - startY.current
       const snappedDeltaY = Math.round(deltaY / 12.75) * 12.75
@@ -182,9 +187,21 @@ export default function InteractiveEvent({
         
         currentTargetEndTime.current = targetDayEnd
         
+        // Visual feedback via custom event for the target column's preview
+        window.dispatchEvent(new CustomEvent('pac-resize-preview', { 
+          detail: { 
+            targetDate: targetDateStr, 
+            height: minutesOnNewDay * (51/60),
+            color: event.project ? event.project.color : 'var(--primary-color)'
+          } 
+        }))
+
         // Visual feedback via toast during drag
         const timeStr = format(targetDayEnd, 'MMM d, h:mm a')
         window.dispatchEvent(new CustomEvent('pac-toast', { detail: `Target: ${timeStr}` }))
+      } else {
+        // Fallback or cleanup if no valid column under cursor
+        window.dispatchEvent(new CustomEvent('pac-resize-end'))
       }
     }
   }
@@ -195,6 +212,9 @@ export default function InteractiveEvent({
     setTimeout(() => { justResized.current = false }, 100)
     document.removeEventListener('pointermove', handlePointerMove)
     document.removeEventListener('pointerup', handlePointerUp)
+    
+    // Cleanup cross-day previews
+    window.dispatchEvent(new CustomEvent('pac-resize-end'))
     
     if (!currentTargetEndTime.current) return
 

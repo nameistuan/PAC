@@ -21,6 +21,9 @@ export default function InteractiveDayCol({ dateStr, className, children }: { da
   const is15Min = previewHeight <= 16
   const linkPadding = is15Min ? '0 0.15rem' : '0.25rem 0.5rem'
 
+  const [resizeHeight, setResizeHeight] = useState<number | null>(null)
+  const [resizeColor, setResizeColor] = useState<string>('var(--primary-color)')
+
   // Wait rigorously for Next.js to fire a fresh layout payload containing the authentic Server Component element before collapsing our client-side snapshot model!
   useEffect(() => {
     if (isPendingDrop) {
@@ -28,6 +31,29 @@ export default function InteractiveDayCol({ dateStr, className, children }: { da
       setIsPendingDrop(false)
     }
   }, [children])
+
+  // Listen for multi-day resize previews
+  useEffect(() => {
+    const handleResizePreview = (e: any) => {
+      const { targetDate, height, color } = e.detail
+      if (targetDate === dateStr) {
+        setResizeHeight(height)
+        setResizeColor(color)
+      } else {
+        setResizeHeight(null)
+      }
+    }
+    const handleResizeEnd = () => {
+      setResizeHeight(null)
+    }
+
+    window.addEventListener('pac-resize-preview', handleResizePreview)
+    window.addEventListener('pac-resize-end', handleResizeEnd)
+    return () => {
+      window.removeEventListener('pac-resize-preview', handleResizePreview)
+      window.removeEventListener('pac-resize-end', handleResizeEnd)
+    }
+  }, [dateStr])
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault()
@@ -215,6 +241,34 @@ export default function InteractiveDayCol({ dateStr, className, children }: { da
             pointerEvents: 'none'
           }}
         />
+      )}
+      {resizeHeight !== null && (
+        <div 
+          style={{
+            position: 'absolute',
+            top: '0',
+            left: '2px',
+            width: 'calc(100% - 8px)',
+            height: `${resizeHeight}px`,
+            backgroundColor: `${resizeColor}33`,
+            color: resizeColor,
+            borderLeft: `4px solid ${resizeColor}`,
+            borderBottom: `2px solid ${resizeColor}`,
+            borderRadius: '4px',
+            boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.1)',
+            pointerEvents: 'none',
+            zIndex: 100,
+            overflow: 'hidden',
+            display: 'flex',
+            flexDirection: 'column',
+            padding: '4px 6px',
+            fontSize: '0.75rem',
+            lineHeight: 1.2,
+            fontWeight: 600
+          }}
+        >
+          (cont.)
+        </div>
       )}
       {previewY !== null && (
         <div 
