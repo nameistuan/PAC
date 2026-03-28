@@ -44,7 +44,8 @@ export default function InteractiveDayCol({ dateStr, className, children }: { da
       const resStart = new Date(startTimeStr)
       const resEnd = new Date(targetEndTimeStr)
       
-      const dayStart = new Date(dateStr)
+      const [yyyy, mm, dd] = dateStr.split('-').map(Number)
+      const dayStart = new Date(yyyy, mm - 1, dd)
       dayStart.setHours(0,0,0,0)
       const dayEnd = new Date(dayStart)
       dayEnd.setDate(dayEnd.getDate() + 1)
