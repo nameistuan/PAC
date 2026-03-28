@@ -52,48 +52,6 @@ export default function InteractiveEvent({
     if (blockRef.current) blockRef.current.style.opacity = '1'
   }, [height, top, event.startTime, event.endTime])
 
-  // Listen for resize signals to hide/resize segments of THE SAME event during shrink/expand
-  useEffect(() => {
-    const handlePreview = (e: any) => {
-      const { id, targetEndTimeStr } = e.detail
-      if (id === event.id && !isResizing.current) {
-        const targetEndTime = new Date(targetEndTimeStr)
-        const dayStart = new Date(dateStr)
-        dayStart.setHours(0,0,0,0)
-        const dayEnd = new Date(dayStart)
-        dayEnd.setDate(dayEnd.getDate() + 1) // midnight
-
-        if (targetEndTime <= dayStart) {
-          setIsHidden(true)
-        } else {
-          setIsHidden(false)
-          // Calculate segment height for this day
-          const actualStart = event.fullStartTime ? new Date(event.fullStartTime) : new Date(event.startTime)
-          const displayStart = actualStart < dayStart ? dayStart : actualStart
-          const displayEnd = targetEndTime > dayEnd ? dayEnd : targetEndTime
-          
-          if (displayEnd <= displayStart) {
-            setIsHidden(true)
-          } else {
-            const h = ((displayEnd.getTime() - displayStart.getTime()) / 3600000) * 51
-            setDragHeight(h)
-            dragHeightRef.current = h
-          }
-        }
-      }
-    }
-    const handleEnd = () => {
-      setIsHidden(false)
-      setDragHeight(height)
-      dragHeightRef.current = height
-    }
-    window.addEventListener('pac-resize-preview', handlePreview)
-    window.addEventListener('pac-resize-end', handleEnd)
-    return () => {
-      window.removeEventListener('pac-resize-preview', handlePreview)
-      window.removeEventListener('pac-resize-end', handleEnd)
-    }
-  }, [event.id, dateStr, height, event.fullStartTime, event.startTime])
 
 
 
@@ -184,6 +142,23 @@ export default function InteractiveEvent({
     document.addEventListener('pointerup', handlePointerUp)
   }
 
+  // Listen for resize signals to hide real segments while resizer ghost handles the visuals
+  useEffect(() => {
+    const handlePreview = (e: any) => {
+      const { id } = e.detail
+      if (id === event.id) {
+        setIsHidden(true)
+      }
+    }
+    const handleEnd = () => setIsHidden(false)
+    window.addEventListener('pac-resize-preview', handlePreview)
+    window.addEventListener('pac-resize-end', handleEnd)
+    return () => {
+      window.removeEventListener('pac-resize-preview', handlePreview)
+      window.removeEventListener('pac-resize-end', handleEnd)
+    }
+  }, [event.id])
+
   const handlePointerMove = (e: PointerEvent) => {
     if (!isResizing.current) return
     
@@ -194,7 +169,6 @@ export default function InteractiveEvent({
 
     const tDateStr = el?.getAttribute('data-date')
     const actualStart = event.fullStartTime ? new Date(event.fullStartTime) : new Date(event.startTime)
-    const startDateStr = format(actualStart, 'yyyy-MM-dd')
 
     if (tDateStr) {
       const rect = el!.getBoundingClientRect()
@@ -205,38 +179,18 @@ export default function InteractiveEvent({
       const targetTime = new Date(yyyy, mm - 1, dd)
       targetTime.setHours(Math.floor(minutesOnTargetDay / 60), minutesOnTargetDay % 60, 0, 0)
 
-      // Clamp targetTime so it never goes before (Start + 15mins)
       const minEnd = new Date(actualStart.getTime() + 15 * 60000)
       const finalTargetTime = targetTime < minEnd ? minEnd : targetTime
       
       currentTargetEndTime.current = finalTargetTime
 
-      // 1. Local Visual Update for the segment we are dragging:
-      const dayStart = new Date(dateStr)
-      dayStart.setHours(0,0,0,0)
-      const dayEnd = new Date(dayStart)
-      dayEnd.setDate(dayEnd.getDate() + 1)
-
-      const displayStart = actualStart < dayStart ? dayStart : actualStart
-      const displayEnd = finalTargetTime > dayEnd ? dayEnd : finalTargetTime
-
-      if (displayEnd <= displayStart) {
-        setIsHidden(true)
-      } else {
-        setIsHidden(false)
-        const h = ((displayEnd.getTime() - displayStart.getTime()) / 3600000) * 51
-        setDragHeight(h)
-        dragHeightRef.current = h
-      }
-
-      // 2. Broadcast for all other columns/segments
+      // Broadcast unified time for ghost blocks across all columns
       window.dispatchEvent(new CustomEvent('pac-resize-preview', { 
         detail: { 
           id: event.id,
-          startDate: startDateStr,
-          targetDate: tDateStr, 
+          title: event.title,
+          startTimeStr: actualStart.toISOString(),
           targetEndTimeStr: finalTargetTime.toISOString(),
-          endHeight: minutesOnTargetDay * (51/60),
           color: event.project ? event.project.color : 'var(--primary-color)'
         } 
       }))

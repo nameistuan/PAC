@@ -2,6 +2,7 @@
 
 import React, { ReactNode, useState, useEffect, useRef, startTransition } from 'react'
 import { useRouter } from 'next/navigation'
+import { format } from 'date-fns'
 import { updateEvent } from '@/lib/undoManager'
 
 export default function InteractiveDayCol({ dateStr, className, children }: { dateStr: string, className: string, children: ReactNode }) {
@@ -21,8 +22,11 @@ export default function InteractiveDayCol({ dateStr, className, children }: { da
   const is15Min = previewHeight <= 16
   const linkPadding = is15Min ? '0 0.15rem' : '0.25rem 0.5rem'
 
+  const [resizeY, setResizeY] = useState<number | null>(null)
   const [resizeHeight, setResizeHeight] = useState<number | null>(null)
   const [resizeColor, setResizeColor] = useState<string>('var(--primary-color)')
+  const [resizeTitle, setResizeTitle] = useState<string>('')
+  const [resizeTime, setResizeTime] = useState<string>('')
 
   // Wait rigorously for Next.js to fire a fresh layout payload containing the authentic Server Component element before collapsing our client-side snapshot model!
   useEffect(() => {
@@ -35,23 +39,34 @@ export default function InteractiveDayCol({ dateStr, className, children }: { da
   // Listen for multi-day resize previews
   useEffect(() => {
     const handleResizePreview = (e: any) => {
-      const { startDate, targetDate, endHeight, color } = e.detail
+      const { startTimeStr, targetEndTimeStr, color, title } = e.detail
       
-      // Lexical comparison works for YYYY-MM-DD
-      const isTarget = dateStr === targetDate
-      const isIntermediary = dateStr > startDate && dateStr < targetDate
+      const resStart = new Date(startTimeStr)
+      const resEnd = new Date(targetEndTimeStr)
       
-      if (isTarget) {
-        setResizeHeight(endHeight)
+      const dayStart = new Date(dateStr)
+      dayStart.setHours(0,0,0,0)
+      const dayEnd = new Date(dayStart)
+      dayEnd.setDate(dayEnd.getDate() + 1)
+
+      const actualStart = resStart < dayStart ? dayStart : resStart
+      const actualEnd = resEnd > dayEnd ? dayEnd : resEnd
+
+      if (actualStart < actualEnd) {
+        setResizeY(((actualStart.getTime() - dayStart.getTime()) / 3600000) * 51)
+        setResizeHeight(((actualEnd.getTime() - actualStart.getTime()) / 3600000) * 51)
         setResizeColor(color)
-      } else if (isIntermediary) {
-        setResizeHeight(24 * 51) // Full day preview
-        setResizeColor(color)
+        setResizeTitle(title)
+        
+        const timeStr = `${format(resStart, 'h:mm a')} - ${format(resEnd, 'h:mm a')}`
+        setResizeTime(timeStr)
       } else {
+        setResizeY(null)
         setResizeHeight(null)
       }
     }
     const handleResizeEnd = () => {
+      setResizeY(null)
       setResizeHeight(null)
     }
 
@@ -254,7 +269,7 @@ export default function InteractiveDayCol({ dateStr, className, children }: { da
         <div 
           style={{
             position: 'absolute',
-            top: '0',
+            top: `${resizeY}px`,
             left: '2px',
             width: 'calc(100% - 8px)',
             height: `${resizeHeight}px`,
@@ -275,7 +290,8 @@ export default function InteractiveDayCol({ dateStr, className, children }: { da
             fontWeight: 600
           }}
         >
-          (cont.)
+          <div style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}>{resizeTitle || 'Untitled'}</div>
+          <div style={{ opacity: 0.8, fontSize: '0.7rem' }}>{resizeTime}</div>
         </div>
       )}
       {previewY !== null && (
