@@ -10,6 +10,12 @@
   grid-template-columns: 60px repeat(7, 1fr);
   border-bottom: 1px solid var(--border-color);
   flex-shrink: 0;
+  overflow-y: scroll; /* Force track width to match body mathematically */
+  scrollbar-width: none; /* Firefox */
+}
+
+.headerRow::-webkit-scrollbar {
+  display: none; /* Chrome/Safari */
 }
 
 .timeColHeader {
