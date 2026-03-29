@@ -103,6 +103,7 @@ export default function InteractiveEvent({
     e.dataTransfer.effectAllowed = 'move'
     
     // Globally register internal telemetry structurally
+    ;(window as any).__activeDragId = event.id
     ;(window as any).__activeDragCursorOffsetMs = cursorOffsetFromStartMs
     ;(window as any).__activeDragDuration = durationMs
     ;(window as any).__activeDragTitle = event.title
@@ -114,18 +115,20 @@ export default function InteractiveEvent({
     ;(window as any).__activeDragTime = startTimeStr + endTimeStr
     
     // Natively override the browser OS ghost graphic out of the layout rendering
-    // User specifically requested no ghosting during a move, just showing the previous state entirely undisturbed
     const blankImg = new Image()
     blankImg.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
     e.dataTransfer.setDragImage(blankImg, 0, 0)
   }
 
   const handleDragEnd = (e: React.DragEvent) => {
+    ;(window as any).__activeDragId = null
     ;(window as any).__activeDragCursorOffsetMs = null
     ;(window as any).__activeDragDuration = null
     ;(window as any).__activeDragTitle = null
     ;(window as any).__activeDragColor = null
     ;(window as any).__activeDragTime = null
+    // Dispatch end to collapse all active ghosts across channels
+    window.dispatchEvent(new CustomEvent('pac-resize-end'))
   }
 
   const handlePointerDown = (e: React.PointerEvent) => {
