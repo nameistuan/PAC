@@ -321,8 +321,23 @@ export default function InteractiveDayCol({ dateStr, className, children }: { da
             fontWeight: 500
           }}
         >
-          <div style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}>{resizeTitle || 'Untitled'}</div>
-          <div style={{ opacity: 0.8, fontSize: '0.7rem' }}>{resizeTime}</div>
+          <div style={{ 
+            display: 'flex', 
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'flex-start',
+            gap: '6px',
+            height: '100%', 
+            width: '100%', 
+            overflow: 'hidden'
+          }}>
+            <div style={{ flexShrink: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {resizeTitle || 'Untitled'}
+            </div>
+            <div style={{ opacity: 0.8, fontSize: '0.7rem', flexShrink: 0, whiteSpace: 'nowrap' }}>
+              {resizeTime}
+            </div>
+          </div>
         </div>
       )}
       {previewY !== null && (

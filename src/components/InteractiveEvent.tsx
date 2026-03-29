@@ -306,22 +306,21 @@ export default function InteractiveEvent({
       <div 
         style={{ 
           display: 'flex', 
-          flexDirection: is30MinOrLess ? 'row' : 'column',
-          justifyContent: 'flex-start',
+          flexDirection: 'row',
+          justifyContent: 'space-between',
           alignItems: 'flex-start',
-          gap: is30MinOrLess ? '4px' : '0px',
+          gap: '6px',
           height: '100%', 
           width: '100%', 
           color: 'inherit', 
-          textDecoration: 'none', 
-          padding: linkPadding,
+          padding: 0,
           overflow: 'hidden'
         }}
       >
-        <div style={{ fontWeight: 600, flexShrink: 0, maxWidth: '100%', minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+        <div style={{ fontWeight: 500, flexShrink: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
           {event.title}
         </div>
-        <div style={{ opacity: 0.8, flexShrink: 1, maxWidth: '100%', minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+        <div style={{ opacity: 0.8, fontSize: '0.7rem', flexShrink: 0, whiteSpace: 'nowrap' }}>
           {format(new Date(event.startTime), 'h:mm a')} 
           {isMoreThanHour && event.endTime && ` - ${format(new Date(event.endTime), 'h:mm a')}`}
         </div>
