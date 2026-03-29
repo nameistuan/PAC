@@ -56,7 +56,9 @@ export default function InteractiveDayCol({ dateStr, className, children }: { da
       const dayStartMs = dayStart.getTime()
       const dayEndMs = dayEnd.getTime()
 
-      if (resEndMs <= dayStartMs || resStartMs >= dayEndMs) {
+      // Aggressive guard with 50ms buffer to prevent 'leakage' where midnight-exactly events 
+      // appear in the next day column due to precision noise.
+      if (resEndMs <= dayStartMs + 50 || resStartMs >= dayEndMs - 50) {
         setResizeY(null)
         setResizeHeight(null)
         return
