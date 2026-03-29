@@ -331,6 +331,7 @@ export default function InteractiveDayCol({ dateStr, className, children }: { da
             gap: is30MinOrLessResize ? '6px' : '0px',
             height: '100%', 
             width: '100%', 
+            padding: 0,
             overflow: 'hidden'
           }}>
             <div style={{ flexShrink: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -374,7 +375,7 @@ export default function InteractiveDayCol({ dateStr, className, children }: { da
             gap: is30MinOrLess ? '6px' : '0px',
             height: '100%', 
             width: '100%', 
-            padding: linkPadding,
+            padding: 0,
             overflow: 'hidden'
           }}>
             <div style={{ fontWeight: 500, flexShrink: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>

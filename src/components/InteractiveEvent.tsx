@@ -268,7 +268,7 @@ export default function InteractiveEvent({
         height: `${dragHeight}px`,
         position: 'absolute',
         left: assignedLeft,
-        right: '4px',
+        right: '6px',
         zIndex: zIndex,
         outline: 'none',
         boxShadow: isLayoutIndented ? 'inset 0 0 0 1px rgba(0,0,0,0.05), 0 0 0 1.5px var(--surface-color), 0 4px 6px rgba(0,0,0,0.15), 0 1px 3px rgba(0,0,0,0.1)' : 'inset 0 0 0 1px rgba(0,0,0,0.1)', // Uniform inset shadow
