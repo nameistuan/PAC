@@ -19,6 +19,7 @@ export default function InteractiveDayCol({ dateStr, className, children }: { da
   const [createCurrentTop, setCreateCurrentTop] = useState<number | null>(null)
 
   const isMoreThanHour = previewHeight > 55
+  const is30MinOrLess = previewHeight <= 27
   const is15Min = previewHeight <= 16
   const linkPadding = is15Min ? '0 0.15rem' : '0.25rem 0.5rem'
 
@@ -29,6 +30,7 @@ export default function InteractiveDayCol({ dateStr, className, children }: { da
   const [resizeTime, setResizeTime] = useState<string>('')
 
   const isMoreThanHourResize = resizeHeight !== null && resizeHeight > 55
+  const is30MinOrLessResize = resizeHeight !== null && resizeHeight <= 27
   const is15MinResize = resizeHeight !== null && resizeHeight <= 16
 
   // Wait rigorously for Next.js to fire a fresh layout payload containing the authentic Server Component element before collapsing our client-side snapshot model!
@@ -323,10 +325,10 @@ export default function InteractiveDayCol({ dateStr, className, children }: { da
         >
           <div style={{ 
             display: 'flex', 
-            flexDirection: 'row',
-            justifyContent: 'space-between',
+            flexDirection: is30MinOrLessResize ? 'row' : 'column',
+            justifyContent: is30MinOrLessResize ? 'space-between' : 'flex-start',
             alignItems: 'flex-start',
-            gap: '6px',
+            gap: is30MinOrLessResize ? '6px' : '0px',
             height: '100%', 
             width: '100%', 
             overflow: 'hidden'
@@ -366,10 +368,10 @@ export default function InteractiveDayCol({ dateStr, className, children }: { da
         >
           <div style={{ 
             display: 'flex', 
-            flexDirection: 'row',
-            justifyContent: 'space-between',
+            flexDirection: is30MinOrLess ? 'row' : 'column',
+            justifyContent: is30MinOrLess ? 'space-between' : 'flex-start',
             alignItems: 'flex-start',
-            gap: '6px',
+            gap: is30MinOrLess ? '6px' : '0px',
             height: '100%', 
             width: '100%', 
             padding: linkPadding,

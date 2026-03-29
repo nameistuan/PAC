@@ -306,10 +306,10 @@ export default function InteractiveEvent({
       <div 
         style={{ 
           display: 'flex', 
-          flexDirection: 'row',
-          justifyContent: 'space-between',
+          flexDirection: is30MinOrLess ? 'row' : 'column',
+          justifyContent: is30MinOrLess ? 'space-between' : 'flex-start',
           alignItems: 'flex-start',
-          gap: '6px',
+          gap: is30MinOrLess ? '6px' : '0px',
           height: '100%', 
           width: '100%', 
           color: 'inherit', 
