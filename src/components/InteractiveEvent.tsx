@@ -114,22 +114,13 @@ export default function InteractiveEvent({
     ;(window as any).__activeDragTime = startTimeStr + endTimeStr
     
     // Natively override the browser OS ghost graphic out of the layout rendering
+    // User specifically requested no ghosting during a move, just showing the previous state entirely undisturbed
     const blankImg = new Image()
     blankImg.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
     e.dataTransfer.setDragImage(blankImg, 0, 0)
-    
-    // Completely hide the native item initially
-    setTimeout(() => {
-      if (blockRef.current) blockRef.current.style.opacity = '0'
-    }, 0)
   }
 
   const handleDragEnd = (e: React.DragEvent) => {
-    // If the browser natively aborted the drag, restore transparency
-    if (e.dataTransfer.dropEffect === 'none') {
-      if (blockRef.current) blockRef.current.style.opacity = '1'
-    }
-    
     ;(window as any).__activeDragCursorOffsetMs = null
     ;(window as any).__activeDragDuration = null
     ;(window as any).__activeDragTitle = null
@@ -274,7 +265,9 @@ export default function InteractiveEvent({
         backdropFilter: isLayoutIndented ? 'blur(8px)' : 'none',
         WebkitBackdropFilter: isLayoutIndented ? 'blur(8px)' : 'none',
         color: event.project ? event.project.color : 'var(--text-primary)',
-        border: isLayoutIndented ? '1px solid var(--border-color)' : 'none',
+        borderTop: isLayoutIndented ? '1px solid var(--border-color)' : 'none',
+        borderRight: isLayoutIndented ? '1px solid var(--border-color)' : 'none',
+        borderBottom: isLayoutIndented ? '1px solid var(--border-color)' : 'none',
         borderLeft: `4px solid ${event.project ? event.project.color : 'var(--border-color)'}`,
         cursor: 'move',
         userSelect: 'none',

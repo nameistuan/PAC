@@ -104,43 +104,10 @@ export default function InteractiveDayCol({ dateStr, className, children }: { da
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault()
     e.dataTransfer.dropEffect = 'move'
-    
-    const cursorOffsetFromStartMs = (window as any).__activeDragCursorOffsetMs
-    if (cursorOffsetFromStartMs === undefined || cursorOffsetFromStartMs === null) return
-    
-    const durationMs = (window as any).__activeDragDuration || 3600000
-    
-    const colRect = (e.currentTarget as HTMLElement).getBoundingClientRect()
-    let cursorYInCol = e.clientY - colRect.top
-    if (cursorYInCol < 0) cursorYInCol = 0
-    
-    const cursorDayOffsetMs = (cursorYInCol / 51) * 3600000
-    const [yyyy, mm, dd] = dateStr.split('-').map(Number)
-    const currentDayStart = new Date(yyyy, mm - 1, dd)
-    const dragCursorTimeMs = currentDayStart.getTime() + cursorDayOffsetMs
-    
-    const rawNewStartMs = dragCursorTimeMs - cursorOffsetFromStartMs
-    
-    const rawNewStartDate = new Date(rawNewStartMs)
-    let minutesOnTargetDay = rawNewStartDate.getHours() * 60 + rawNewStartDate.getMinutes()
-    minutesOnTargetDay = Math.round(minutesOnTargetDay / 15) * 15
-    
-    const snappedNewStartDate = new Date(rawNewStartDate.getFullYear(), rawNewStartDate.getMonth(), rawNewStartDate.getDate(), 0, minutesOnTargetDay, 0)
-    
-    // Tap directly into the established robust resizing engine for ghost-block multi-day consistency
-    window.dispatchEvent(new CustomEvent('pac-resize-preview', { 
-      detail: { 
-        id: 'drag-preview',
-        title: (window as any).__activeDragTitle || '',
-        startTimeStr: snappedNewStartDate.toISOString(),
-        targetEndTimeStr: new Date(snappedNewStartDate.getTime() + durationMs).toISOString(),
-        color: (window as any).__activeDragColor || 'var(--primary-color)'
-      } 
-    }))
   }
 
   const handleDragLeave = (e: React.DragEvent) => {
-    // Rely on the ghost block's own unified timeout instead of instantly wiping here
+    // No-op. User prefers no ghost preview tracking during drag-and-drop.
   }
 
   const handleDrop = async (e: React.DragEvent) => {
