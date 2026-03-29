@@ -215,10 +215,6 @@ export default function InteractiveEvent({
           color: event.project ? event.project.color : 'var(--primary-color)'
         } 
       }))
-
-      window.dispatchEvent(new CustomEvent('pac-toast', { 
-        detail: `Target: ${format(finalTargetTime, 'MMM d, h:mm a')}` 
-      }))
     } else {
       // Just ignore out-of-bounds mouse moves so the interaction doesn't flick/reset
       return
