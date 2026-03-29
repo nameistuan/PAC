@@ -28,6 +28,11 @@ export default function InteractiveDayCol({ dateStr, className, children }: { da
 
   // Wait rigorously for Next.js to fire a fresh layout payload containing the authentic Server Component element before collapsing our client-side snapshot model!
   useEffect(() => {
+    // The exact millisecond fresh DB data hits the screen, obliterate any placeholder ghosts 
+    // to prevent visual stacking (which previously caused colors to temporarily darken)
+    setResizeY(null)
+    setResizeHeight(null)
+    
     if (isPendingDrop) {
       setIsPendingDrop(false)
     }
@@ -86,11 +91,12 @@ export default function InteractiveDayCol({ dateStr, className, children }: { da
       }
     }
     const handleResizeEnd = () => {
-      // Keep ghost visible generously to cover any gap while router.refresh() happens
+      // The primary 'clean up' happens automatically the millisecond [children] updates via network completion.
+      // However, we maintain a robust fail-safe here to clear the ghost after 1500ms in the sheer case a network error swallows the refresh.
       setTimeout(() => {
         setResizeY(null)
         setResizeHeight(null)
-      }, 800)
+      }, 1500)
     }
 
     window.addEventListener('pac-resize-preview', handleResizePreview)
