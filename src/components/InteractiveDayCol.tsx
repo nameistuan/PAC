@@ -9,19 +9,12 @@ export default function InteractiveDayCol({ dateStr, className, children }: { da
   const router = useRouter()
   const colRef = useRef<HTMLDivElement>(null)
   
-  const [previewY, setPreviewY] = useState<number | null>(null)
-  const [previewHeight, setPreviewHeight] = useState<number>(51)
   const [isPendingDrop, setIsPendingDrop] = useState(false)
 
   // Drag-to-create state
   const [isCreating, setIsCreating] = useState(false)
   const [createStartTop, setCreateStartTop] = useState<number | null>(null)
   const [createCurrentTop, setCreateCurrentTop] = useState<number | null>(null)
-
-  const isMoreThanHour = previewHeight > 55
-  const is30MinOrLess = previewHeight <= 27
-  const is15Min = previewHeight <= 16
-  const linkPadding = is15Min ? '0 0.15rem' : '0.25rem 0.5rem'
 
   const [resizeY, setResizeY] = useState<number | null>(null)
   const [resizeHeight, setResizeHeight] = useState<number | null>(null)
@@ -36,7 +29,6 @@ export default function InteractiveDayCol({ dateStr, className, children }: { da
   // Wait rigorously for Next.js to fire a fresh layout payload containing the authentic Server Component element before collapsing our client-side snapshot model!
   useEffect(() => {
     if (isPendingDrop) {
-      setPreviewY(null)
       setIsPendingDrop(false)
     }
   }, [children])
@@ -113,61 +105,79 @@ export default function InteractiveDayCol({ dateStr, className, children }: { da
     e.preventDefault()
     e.dataTransfer.dropEffect = 'move'
     
-    const dragOffsetY = (window as any).__activeDragOffsetY || 0
-    const dragDurationMs = (window as any).__activeDragDuration || 3600000
+    const cursorOffsetFromStartMs = (window as any).__activeDragCursorOffsetMs
+    if (cursorOffsetFromStartMs === undefined || cursorOffsetFromStartMs === null) return
+    
+    const durationMs = (window as any).__activeDragDuration || 3600000
     
     const colRect = (e.currentTarget as HTMLElement).getBoundingClientRect()
-    let y = e.clientY - colRect.top - dragOffsetY
-    if (y < 0) y = 0
+    let cursorYInCol = e.clientY - colRect.top
+    if (cursorYInCol < 0) cursorYInCol = 0
     
-    const minutesLayout = (y / 51) * 60
-    const totalMinutesSnapped = Math.round(minutesLayout / 15) * 15
-    const snappedPixelY = Math.min((totalMinutesSnapped / 60) * 51, (24 * 51) - 12.75) // at least one slot
+    const cursorDayOffsetMs = (cursorYInCol / 51) * 3600000
+    const [yyyy, mm, dd] = dateStr.split('-').map(Number)
+    const currentDayStart = new Date(yyyy, mm - 1, dd)
+    const dragCursorTimeMs = currentDayStart.getTime() + cursorDayOffsetMs
     
-    // Ghost block only fills current day column even if it extends further
-    const rawHeight = (dragDurationMs / 3600000) * 51
-    const snappedHeight = Math.min(rawHeight, (24 * 51) - snappedPixelY)
+    const rawNewStartMs = dragCursorTimeMs - cursorOffsetFromStartMs
     
-    setPreviewY(snappedPixelY)
-    setPreviewHeight(snappedHeight)
+    const rawNewStartDate = new Date(rawNewStartMs)
+    let minutesOnTargetDay = rawNewStartDate.getHours() * 60 + rawNewStartDate.getMinutes()
+    minutesOnTargetDay = Math.round(minutesOnTargetDay / 15) * 15
+    
+    const snappedNewStartDate = new Date(rawNewStartDate.getFullYear(), rawNewStartDate.getMonth(), rawNewStartDate.getDate(), 0, minutesOnTargetDay, 0)
+    
+    // Tap directly into the established robust resizing engine for ghost-block multi-day consistency
+    window.dispatchEvent(new CustomEvent('pac-resize-preview', { 
+      detail: { 
+        id: 'drag-preview',
+        title: (window as any).__activeDragTitle || '',
+        startTimeStr: snappedNewStartDate.toISOString(),
+        targetEndTimeStr: new Date(snappedNewStartDate.getTime() + durationMs).toISOString(),
+        color: (window as any).__activeDragColor || 'var(--primary-color)'
+      } 
+    }))
   }
 
   const handleDragLeave = (e: React.DragEvent) => {
-    if (!isPendingDrop) {
-      setPreviewY(null)
-    }
+    // Rely on the ghost block's own unified timeout instead of instantly wiping here
   }
 
   const handleDrop = async (e: React.DragEvent) => {
     e.preventDefault()
     
     const eventId = e.dataTransfer.getData('eventId')
-    const durationMsRaw = e.dataTransfer.getData('eventDurationMs')
-    const dragOffsetYRaw = e.dataTransfer.getData('dragOffsetY')
     if (!eventId) return
     
-    setIsPendingDrop(true)
+    const cursorOffsetFromStartMs = (window as any).__activeDragCursorOffsetMs
+    if (cursorOffsetFromStartMs === undefined || cursorOffsetFromStartMs === null) return
     
-    const durationMs = durationMsRaw ? parseInt(durationMsRaw) : 3600000
-    const dragOffsetY = dragOffsetYRaw ? parseFloat(dragOffsetYRaw) : 0
+    const durationMs = (window as any).__activeDragDuration || 3600000
     
     const colRect = (e.currentTarget as HTMLElement).getBoundingClientRect()
-    let y = e.clientY - colRect.top - dragOffsetY
-    if (y < 0) y = 0
+    let cursorYInCol = e.clientY - colRect.top
+    if (cursorYInCol < 0) cursorYInCol = 0
     
-    const minutesLayout = (y / 51) * 60
-    const totalMinutesSnapped = Math.round(minutesLayout / 15) * 15
-    const snappedHour = Math.floor(totalMinutesSnapped / 60)
-    const snappedMin = totalMinutesSnapped % 60
-
+    const cursorDayOffsetMs = (cursorYInCol / 51) * 3600000
     const [yyyy, mm, dd] = dateStr.split('-').map(Number)
-    const dropStartDate = new Date(yyyy, mm - 1, dd, snappedHour, snappedMin, 0)
-    const dropEndDate = new Date(dropStartDate.getTime() + durationMs)
+    const currentDayStart = new Date(yyyy, mm - 1, dd)
+    const dragCursorTimeMs = currentDayStart.getTime() + cursorDayOffsetMs
+    
+    const rawNewStartMs = dragCursorTimeMs - cursorOffsetFromStartMs
+    const rawNewStartDate = new Date(rawNewStartMs)
+    let minutesOnTargetDay = rawNewStartDate.getHours() * 60 + rawNewStartDate.getMinutes()
+    minutesOnTargetDay = Math.round(minutesOnTargetDay / 15) * 15
+    const snappedNewStartDate = new Date(rawNewStartDate.getFullYear(), rawNewStartDate.getMonth(), rawNewStartDate.getDate(), 0, minutesOnTargetDay, 0)
+    const snappedNewEndDate = new Date(snappedNewStartDate.getTime() + durationMs)
+
+    setIsPendingDrop(true)
+    
+    window.dispatchEvent(new CustomEvent('pac-resize-end')) // Terminate ghost block
 
     try {
       const label = await updateEvent(eventId, {
-        startTime: dropStartDate.toISOString(),
-        endTime: dropEndDate.toISOString()
+        startTime: snappedNewStartDate.toISOString(),
+        endTime: snappedNewEndDate.toISOString()
       })
       if (label) {
         window.dispatchEvent(new CustomEvent('pac-toast', { detail: `Moved "${label}" — Press ⌘Z to undo` }))
@@ -339,50 +349,6 @@ export default function InteractiveDayCol({ dateStr, className, children }: { da
             </div>
             <div style={{ opacity: 0.8, fontSize: '0.7rem', flexShrink: 0, whiteSpace: 'nowrap' }}>
               {resizeTime}
-            </div>
-          </div>
-        </div>
-      )}
-      {previewY !== null && (
-        <div 
-          style={{
-            position: 'absolute',
-            top: `${previewY}px`,
-            left: '2px',
-            width: 'calc(100% - 8px)',
-            height: `${previewHeight}px`,
-            backgroundColor: (window as any).__activeDragColor ? `${(window as any).__activeDragColor}33` : 'var(--surface-hover)',
-            color: (window as any).__activeDragColor || 'var(--text-primary)',
-            borderLeft: `4px solid ${(window as any).__activeDragColor || 'var(--border-color)'}`,
-            borderRadius: '4px',
-            boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.1), 0 10px 15px -3px rgba(0,0,0,0.1)',
-            pointerEvents: 'none',
-            zIndex: 100,
-            overflow: 'hidden',
-            fontSize: is15Min ? '0.65rem' : '0.75rem',
-            lineHeight: 1.2,
-            fontWeight: 500,
-            padding: is15Min ? '0px 4px' : '4px 6px',
-            display: 'flex',
-            flexDirection: 'column'
-          }}
-        >
-          <div style={{ 
-            display: 'flex', 
-            flexDirection: is30MinOrLess ? 'row' : 'column',
-            justifyContent: is30MinOrLess ? 'space-between' : 'flex-start',
-            alignItems: 'flex-start',
-            gap: is30MinOrLess ? '6px' : '0px',
-            height: '100%', 
-            width: '100%', 
-            padding: 0,
-            overflow: 'hidden'
-          }}>
-            <div style={{ fontWeight: 500, flexShrink: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {(window as any).__activeDragTitle}
-            </div>
-            <div style={{ opacity: 0.8, flexShrink: 0, whiteSpace: 'nowrap' }}>
-              {(window as any).__activeDragTime}
             </div>
           </div>
         </div>

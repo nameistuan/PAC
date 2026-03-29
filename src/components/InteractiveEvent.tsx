@@ -87,21 +87,23 @@ export default function InteractiveEvent({
     const actualEnd = event.fullEndTime ? new Date(event.fullEndTime) : new Date(actualStart.getTime() + 3600000)
     const durationMs = actualEnd.getTime() - actualStart.getTime()
     
-    // Multi-day offset: Distance from the actual event start to the top of the current day's rendered block
-    const clipOffsetMs = event.displayStart ? (new Date(event.displayStart).getTime() - actualStart.getTime()) : 0
-    const clipOffsetPx = (clipOffsetMs / 3600000) * 51
-
-    // Calculate the precise pixel offset from the TRUE start of the event where the cursor grabbed it
+    // Calculate the precise chronological offset from the true start of the event to where the cursor grabbed it
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
-    const dragOffsetY = (e.clientY - rect.top) + clipOffsetPx
+    // Calculate cursor's Y position relative to the start of the current column's day grid
+    const cursorYInCol = (e.clientY - rect.top) + top
+    const cursorDayOffsetMs = (cursorYInCol / 51) * 3600000
+    
+    const [yyyy, mm, dd] = dateStr.split('-').map(Number)
+    const currentDayStart = new Date(yyyy, mm - 1, dd)
+    const dragCursorTimeMs = currentDayStart.getTime() + cursorDayOffsetMs
+    
+    const cursorOffsetFromStartMs = dragCursorTimeMs - actualStart.getTime()
 
     e.dataTransfer.setData('eventId', event.id)
-    e.dataTransfer.setData('eventDurationMs', durationMs.toString())
-    e.dataTransfer.setData('dragOffsetY', dragOffsetY.toString())
     e.dataTransfer.effectAllowed = 'move'
     
-    // Globally register internal telemetry because Chrome explicitly locks dataTransfer reads securely until the exact moment of 'drop'
-    ;(window as any).__activeDragOffsetY = dragOffsetY
+    // Globally register internal telemetry structurally
+    ;(window as any).__activeDragCursorOffsetMs = cursorOffsetFromStartMs
     ;(window as any).__activeDragDuration = durationMs
     ;(window as any).__activeDragTitle = event.title
     ;(window as any).__activeDragColor = event.project ? event.project.color : null
@@ -128,7 +130,7 @@ export default function InteractiveEvent({
       if (blockRef.current) blockRef.current.style.opacity = '1'
     }
     
-    ;(window as any).__activeDragOffsetY = null
+    ;(window as any).__activeDragCursorOffsetMs = null
     ;(window as any).__activeDragDuration = null
     ;(window as any).__activeDragTitle = null
     ;(window as any).__activeDragColor = null
