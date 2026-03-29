@@ -184,11 +184,20 @@ export default function InteractiveEvent({
     if (tDateStr) {
       const rect = el!.getBoundingClientRect()
       const y = e.clientY - rect.top
-      const minutesOnTargetDay = Math.round(((y / 51) * 60) / 15) * 15
+      
+      // Strict boundary clamping within the current target day
+      const rawMinutes = (y / 51) * 60
+      const minutesOnTargetDay = Math.max(0, Math.min(Math.round(rawMinutes / 15) * 15, 24 * 60))
       
       const [yyyy, mm, dd] = tDateStr.split('-').map(Number)
       const targetTime = new Date(yyyy, mm - 1, dd)
       targetTime.setHours(Math.floor(minutesOnTargetDay / 60), minutesOnTargetDay % 60, 0, 0)
+      
+      // Even if mouse is in the 24th hour of day N, don't let targetTime jump to midnight of day N+1
+      // unless the user literally moves the cursor to day N+1
+      if (minutesOnTargetDay === 24 * 60) {
+        targetTime.setHours(23, 59, 59, 999) 
+      }
 
       const minEnd = new Date(actualStart.getTime() + 15 * 60000)
       const finalTargetTime = targetTime < minEnd ? minEnd : targetTime
@@ -210,7 +219,8 @@ export default function InteractiveEvent({
         detail: `Target: ${format(finalTargetTime, 'MMM d, h:mm a')}` 
       }))
     } else {
-      window.dispatchEvent(new CustomEvent('pac-resize-end'))
+      // Just ignore out-of-bounds mouse moves so the interaction doesn't flick/reset
+      return
     }
   }
 
