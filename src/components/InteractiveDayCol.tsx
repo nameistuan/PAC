@@ -51,18 +51,31 @@ export default function InteractiveDayCol({ dateStr, className, children }: { da
       dayEnd.setDate(dayEnd.getDate() + 1)
 
       // Strict boundary check to prevent midnight bleed into next day
-      if (resEnd.getTime() <= dayStart.getTime() || resStart.getTime() >= dayEnd.getTime()) {
+      const resStartMs = resStart.getTime()
+      const resEndMs = resEnd.getTime()
+      const dayStartMs = dayStart.getTime()
+      const dayEndMs = dayEnd.getTime()
+
+      if (resEndMs <= dayStartMs || resStartMs >= dayEndMs) {
         setResizeY(null)
         setResizeHeight(null)
         return
       }
 
-      const actualStart = resStart < dayStart ? dayStart : resStart
-      const actualEnd = resEnd > dayEnd ? dayEnd : resEnd
+      const actualStartMs = Math.max(resStartMs, dayStartMs)
+      const actualEndMs = Math.min(resEndMs, dayEndMs)
 
-      if (actualStart < actualEnd) {
-        setResizeY(((actualStart.getTime() - dayStart.getTime()) / 3600000) * 51)
-        setResizeHeight(((actualEnd.getTime() - actualStart.getTime()) / 3600000) * 51)
+      if (actualStartMs < actualEndMs) {
+        const heightPx = ((actualEndMs - actualStartMs) / 3600000) * 51
+        // If height is negligible (< 1px), don't render. 
+        // This stops sub-millisecond edge cases from showing a phantom block.
+        if (heightPx < 1) {
+          setResizeY(null)
+          setResizeHeight(null)
+          return
+        }
+        setResizeY(((actualStartMs - dayStartMs) / 3600000) * 51)
+        setResizeHeight(heightPx)
         setResizeColor(color)
         setResizeTitle(title)
         
