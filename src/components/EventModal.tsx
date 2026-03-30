@@ -27,7 +27,8 @@ export default function EventModal({
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [location, setLocation] = useState('')
-  const [date, setDate] = useState(initialDate || new Date().toISOString().slice(0, 10))
+  const [startDate, setStartDate] = useState(initialDate || new Date().toISOString().slice(0, 10))
+  const [endDate, setEndDate] = useState(initialDate || new Date().toISOString().slice(0, 10))
   const [startTime, setStartTime] = useState(initialStartTime || '09:00')
   const [endTime, setEndTime] = useState(initialEndTime || '10:00')
   const [projectId, setProjectId] = useState('')
@@ -134,14 +135,18 @@ export default function EventModal({
           setTitle(data.title)
           setDescription(data.description || '')
           setLocation(data.location || '')
-          setDate(`${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}-${String(start.getDate()).padStart(2, '0')}`)
+          setStartDate(`${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}-${String(start.getDate()).padStart(2, '0')}`)
+          setEndDate(`${end.getFullYear()}-${String(end.getMonth() + 1).padStart(2, '0')}-${String(end.getDate()).padStart(2, '0')}`)
           setStartTime(`${String(start.getHours()).padStart(2, '0')}:${String(start.getMinutes()).padStart(2, '0')}`)
           setEndTime(`${String(end.getHours()).padStart(2, '0')}:${String(end.getMinutes()).padStart(2, '0')}`)
           setProjectId(data.projectId || '')
         })
         .catch(err => console.error("Failed to load focal event", err))
     } else {
-      if (initialDate) setDate(initialDate)
+      if (initialDate) {
+        setStartDate(initialDate)
+        setEndDate(initialDate)
+      }
       if (initialStartTime) setStartTime(initialStartTime)
       if (initialEndTime) setEndTime(initialEndTime)
     }
@@ -151,8 +156,8 @@ export default function EventModal({
     e.preventDefault()
     setIsSubmitting(true)
     
-    const start = new Date(`${date}T${startTime}:00`).toISOString()
-    const end = new Date(`${date}T${endTime}:00`).toISOString()
+    const start = new Date(`${startDate}T${startTime}:00`).toISOString()
+    const end = new Date(`${endDate}T${endTime}:00`).toISOString()
 
     try {
       if (isEditing && eventId) {
@@ -275,12 +280,15 @@ export default function EventModal({
               <div className={styles.iconContainer}>
                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
               </div>
-              <div className={styles.timeInputsWrapper}>
-                 <input type="date" required value={date} onChange={e => setDate(e.target.value)} />
-                 <div className={styles.timeSelects}>
-                    <input type="time" required value={startTime} onChange={e => setStartTime(e.target.value)} />
-                    <span className={styles.timeSep}>–</span>
-                    <input type="time" required value={endTime} onChange={e => setEndTime(e.target.value)} />
+              <div className={styles.timeInputsWrapper} style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '8px', padding: '4px 0' }}>
+                 <div style={{ display: 'flex', gap: '8px', width: '100%', alignItems: 'center' }}>
+                     <input type="date" required value={startDate} onChange={e => setStartDate(e.target.value)} />
+                     <input type="time" required value={startTime} onChange={e => setStartTime(e.target.value)} />
+                 </div>
+                 <div style={{ marginLeft: '4px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>to</div>
+                 <div style={{ display: 'flex', gap: '8px', width: '100%', alignItems: 'center' }}>
+                     <input type="date" required value={endDate} onChange={e => setEndDate(e.target.value)} />
+                     <input type="time" required value={endTime} onChange={e => setEndTime(e.target.value)} />
                  </div>
               </div>
             </div>
