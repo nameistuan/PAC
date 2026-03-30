@@ -56,19 +56,17 @@ export default async function DayView({
 
   return (
     <div className={styles.weekView}>
-      <div className={styles.headerRow} style={{ gridTemplateColumns: '60px repeat(4, 1fr)' }}>
+      <div className={styles.gridBody} style={{ gridTemplateColumns: '60px repeat(4, 1fr)' }}>
         <div className={styles.timeColHeader} />
         {daysInGrid.map(day => (
-          <div key={day.toISOString()} className={styles.dayHeader}>
+          <div key={`header-${day.toISOString()}`} className={styles.dayHeader}>
             <span className={styles.dayName}>{format(day, 'E')}</span>
             <span className={`${styles.dayNumber} ${isToday(day) ? styles.todayNum : ''}`}>
               {format(day, 'd')}
             </span>
           </div>
         ))}
-      </div>
-      
-      <div className={styles.gridBody}>
+        
         {/* Time Column */}
         <div className={styles.timeCol}>
           {hours.map(hour => (
@@ -79,8 +77,7 @@ export default async function DayView({
         </div>
 
         {/* 4 Day Grid */}
-        <div className={styles.daysContainer} style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
-          {daysInGrid.map(day => {
+        {daysInGrid.map(day => {
             const dayEvents = events.filter((e: any) => format(e.startTime, 'yyyy-MM-dd') === format(day, 'yyyy-MM-dd'))
             const layoutEvents = calculateEventLayout(dayEvents)
             const dateStr = format(day, 'yyyy-MM-dd')
@@ -113,7 +110,6 @@ export default async function DayView({
               </InteractiveDayCol>
             )
           })}
-        </div>
       </div>
     </div>
   )
