@@ -88,7 +88,9 @@ export default function InteractiveDayCol({ dateStr, className, children }: { da
         setResizeColor(color)
         setResizeTitle(title)
         
-        const timeStr = `${format(resStart, 'h:mm a')} - ${format(resEnd, 'h:mm a')}`
+        const isMultiday = format(resStart, 'yyyy-MM-dd') !== format(resEnd, 'yyyy-MM-dd')
+        const endTimeStr = isMultiday ? format(resEnd, 'EEE, h:mm a') : format(resEnd, 'h:mm a')
+        const timeStr = `${format(resStart, 'h:mm a')} - ${endTimeStr}`
         setResizeTime(timeStr)
       } else {
         setResizeY(null)

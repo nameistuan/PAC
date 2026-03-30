@@ -15,7 +15,9 @@ import Link from 'next/link'
 import InteractiveMonthCell from '@/components/InteractiveMonthCell'
 import InteractiveMonthEvent from '@/components/InteractiveMonthEvent'
 
-export const dynamic = 'force-dynamic' // Ensure Next.js doesn't cache the real-time calendar during MVP
+import { prepareEventsForGrid } from '@/lib/calendarEngine'
+
+export const dynamic = 'force-dynamic' 
 
 export default async function MonthView({
   searchParams
@@ -23,7 +25,6 @@ export default async function MonthView({
   searchParams: Promise<{ month?: string, date?: string }>
 }) {
   const resolvedParams = await searchParams
-  const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
   
   // 1. Determine current month interval structure
   let currentDate = new Date()
@@ -33,7 +34,6 @@ export default async function MonthView({
     currentDate = parseISO(`${resolvedParams.month}-01T12:00:00Z`)
   }
   
-  // Helper to construct event editing URL cleanly
   const getEventUrl = (eventId: string) => {
     const params = new URLSearchParams()
     if (resolvedParams.date) params.set('date', resolvedParams.date)
@@ -44,7 +44,6 @@ export default async function MonthView({
   const monthStart = startOfMonth(currentDate)
   const monthEnd = endOfMonth(monthStart)
   
-  // 2. Pad the grid with trailing days from the previous/next month automatically
   const startDate = startOfWeek(monthStart)
   const endDate = endOfWeek(monthEnd)
   
@@ -53,42 +52,33 @@ export default async function MonthView({
     end: endDate
   })
 
-  // 3. Fetch real events from database for this specific visual range
-  const events = await prisma.event.findMany({
+  // 3. Fetch real events
+  const rawEvents = await prisma.event.findMany({
     where: {
       AND: [
         { startTime: { lte: endDate } },
         { endTime: { gte: startDate } }
       ]
     },
-    include: {
-      project: true // Bring in the Tags/Colors
-    }
-  });
+    include: { project: true }
+  }) as any[];
 
-  // 4. Map the UI representations safely
+  // 4. Centralized Slicing
+  const daySegmentsMap = prepareEventsForGrid(rawEvents, startDate, endDate);
+
   const calendarDays = daysInGrid.map(day => {
-    // Isolate events that occur on this exact day
-    const dayDateString = format(day, 'yyyy-MM-dd');
+    const dateStr = format(day, 'yyyy-MM-dd');
+    const daySegments = daySegmentsMap.get(dateStr) || [];
     
-    // Mathematically intersect spans so long events duplicate across month-cells correctly!
-    const dayStart = new Date(day)
-    dayStart.setHours(0,0,0,0)
-    const dayEnd = new Date(dayStart)
-    dayEnd.setDate(dayEnd.getDate() + 1)
-    
-    const dayEvents = events.filter((e: any) => {
-      const eStart = new Date(e.startTime)
-      const eEnd = new Date(e.endTime)
-      return eStart < dayEnd && eEnd > dayStart
-    }).sort((a: any, b: any) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+    // Sort by original start time
+    daySegments.sort((a, b) => a.fullStartTime.getTime() - b.fullStartTime.getTime());
 
     return {
       dateObj: day,
       date: day.getDate(),
       isToday: isToday(day),
       isOtherMonth: !isSameMonth(day, monthStart),
-      events: dayEvents
+      events: daySegments
     }
   })
 

@@ -12,6 +12,8 @@ import InteractiveDayCol from '@/components/InteractiveDayCol'
 import InteractiveEvent from '@/components/InteractiveEvent'
 import { calculateEventLayout } from '@/lib/groupEvents'
 
+import { prepareEventsForGrid } from '@/lib/calendarEngine'
+
 export const dynamic = 'force-dynamic' 
 
 export default async function WeekView({
@@ -27,7 +29,7 @@ export default async function WeekView({
   } else if (resolvedParams.month) {
     currentDate = parseISO(`${resolvedParams.month}-01T12:00:00Z`)
   } else {
-    currentDate = startOfWeek(new Date())
+    currentDate = startOfWeek(new Date(), { weekStartsOn: 0 })
   }
   
   const getEventUrl = (eventId: string) => {
@@ -38,17 +40,15 @@ export default async function WeekView({
     return `/week?${params.toString()}`
   }
   
-  const startDate = new Date(currentDate)
-  startDate.setHours(0,0,0,0)
-  const endDate = new Date(currentDate)
+  const startDate = startOfWeek(currentDate, { weekStartsOn: 0 })
+  const endDate = new Date(startDate)
   endDate.setDate(endDate.getDate() + 6)
   endDate.setHours(23,59,59,999)
   
   const daysInGrid = eachDayOfInterval({ start: startDate, end: endDate })
 
-  // Fetch real events using robust overlapping temporal boundaries!
-  // It handles items that started *before* the week but overlap into it.
-  const events = await prisma.event.findMany({
+  // Fetch real events
+  const rawEvents = await prisma.event.findMany({
     where: {
       AND: [
         { startTime: { lte: endDate } },
@@ -56,7 +56,11 @@ export default async function WeekView({
       ]
     },
     include: { project: true }
-  });
+  }) as any[];
+
+  // 1. Centralized Slicing & Processing
+  const daySegmentsMap = prepareEventsForGrid(rawEvents, startDate, endDate);
+
   const hours = Array.from({ length: 24 }).map((_, i) => i)
 
   return (
@@ -82,54 +86,21 @@ export default async function WeekView({
 
         {/* Days Grid */}
         {daysInGrid.map(day => {
-            const dayStart = new Date(day)
-            dayStart.setHours(0,0,0,0)
-            const dayEnd = new Date(dayStart)
-            dayEnd.setDate(dayEnd.getDate() + 1) // Exact midnight of the next day
-
-            // Intersection-based filtering: event overlaps day if it starts before day ends AND ends after day starts
-            // Using exclusive comparison (> and <) to prevent events exactly ending/starting at midnight from bleeding into the wrong day
-            const overlappingEvents = events.filter((e: any) => {
-              const eStart = new Date(e.startTime)
-              const eEnd = e.endTime ? new Date(e.endTime) : new Date(eStart.getTime() + 3600000)
-              return eStart < dayEnd && eEnd > dayStart
-            })
-            
-            // Map to 'layout' compatible objects but using clipped boundaries for the current day
-            const daySpecificEvents = overlappingEvents.map((e: any) => {
-              const eStart = new Date(e.startTime)
-              const eEnd = e.endTime ? new Date(e.endTime) : new Date(eStart.getTime() + 3600000)
-              
-              const clippedStart = eStart < dayStart ? dayStart : eStart
-              const clippedEnd = eEnd > dayEnd ? dayEnd : eEnd
-
-              return {
-                ...e,
-                displayStart: clippedStart,
-                displayEnd: clippedEnd,
-                fullStartTime: eStart,
-                fullEndTime: eEnd,
-                // These will be used for layout calculations (overlap detection)
-                startTime: clippedStart,
-                endTime: clippedEnd
-              }
-            })
-
-            const layoutEvents = calculateEventLayout(daySpecificEvents)
             const dateStr = format(day, 'yyyy-MM-dd')
+            const daySegments = daySegmentsMap.get(dateStr) || []
+            
+            // 2. Perform Layout Clustering
+            const layoutEvents = calculateEventLayout(daySegments)
 
             return (
               <InteractiveDayCol key={day.toISOString()} dateStr={dateStr} className={styles.dayCol}>
-                {layoutEvents.map((le: any) => {
+                {layoutEvents.map((le) => {
                   const startHour = le.displayStart.getHours()
                   const startMin = le.displayStart.getMinutes()
                   
                   const durationMs = le.displayEnd.getTime() - le.displayStart.getTime()
                   const top = (startHour * 51) + (startMin * (51 / 60))
-                  const height = Math.max((durationMs / 3600000) * 51, 12) // clamp min height
-
-                  const isStartClipped = le.displayStart.getTime() !== le.fullStartTime.getTime()
-                  const isEndClipped = le.displayEnd.getTime() !== le.fullEndTime.getTime()
+                  const height = Math.max((durationMs / 3600000) * 51, 12)
 
                   return (
                     <InteractiveEvent
@@ -142,8 +113,9 @@ export default async function WeekView({
                       assignedLeft={le.assignedLeft}
                       isLayoutIndented={le.isLayoutIndented}
                       zIndex={le.zIndex}
-                      isStartClipped={isStartClipped}
-                      isEndClipped={isEndClipped}
+                      // Pre-computed clipping meta from the engine
+                      isStartClipped={le.isStartClipped}
+                      isEndClipped={le.isEndClipped}
                       className={styles.eventBlock}
                     />
                   )

@@ -1,35 +1,38 @@
-export type CalendarEventItem = {
-  id: string;
-  startTime: Date;
-  endTime: Date | null;
-  [key: string]: any;
-};
+import { EventSegment } from './calendarEngine';
 
-export type EventWithLayout = CalendarEventItem & {
+export type EventWithLayout<T extends { id: string; startTime: Date; endTime: Date }> = T & {
   assignedLeft: string;
   isLayoutIndented: boolean;
   zIndex: number;
 };
 
-export function calculateEventLayout(events: CalendarEventItem[]): EventWithLayout[] {
+/**
+ * Calculates the horizontal positioning (clustering) for a set of events that share a column.
+ * Works with any object that has id, startTime, and endTime.
+ */
+export function calculateEventLayout<T extends { id: string; startTime: Date; endTime: Date }>(
+  events: T[]
+): EventWithLayout<T>[] {
+  if (events.length === 0) return [];
+
   // Sort events by start time, then end time (longest first)
   const sortedEvents = [...events].sort((a, b) => {
-    const aStart = new Date(a.startTime).getTime();
-    const bStart = new Date(b.startTime).getTime();
+    const aStart = a.startTime.getTime();
+    const bStart = b.startTime.getTime();
     if (aStart !== bStart) return aStart - bStart;
     
-    const aEnd = a.endTime ? new Date(a.endTime).getTime() : aStart + 3600000;
-    const bEnd = b.endTime ? new Date(b.endTime).getTime() : bStart + 3600000;
+    const aEnd = a.endTime.getTime();
+    const bEnd = b.endTime.getTime();
     return bEnd - aEnd;
   });
 
-  const groups: CalendarEventItem[][] = [];
-  let currentGroup: CalendarEventItem[] = [];
+  const groups: T[][] = [];
+  let currentGroup: T[] = [];
   let groupEnd = 0;
 
   for (const event of sortedEvents) {
-    const start = new Date(event.startTime).getTime();
-    const end = event.endTime ? new Date(event.endTime).getTime() : start + 3600000;
+    const start = event.startTime.getTime();
+    const end = event.endTime.getTime();
 
     if (currentGroup.length === 0 || start < groupEnd) {
       currentGroup.push(event);
@@ -45,7 +48,7 @@ export function calculateEventLayout(events: CalendarEventItem[]): EventWithLayo
     groups.push(currentGroup);
   }
 
-  const result: EventWithLayout[] = [];
+  const result: EventWithLayout<T>[] = [];
   let globalZIndex = 1;
 
   for (const group of groups) {
@@ -61,12 +64,11 @@ export function calculateEventLayout(events: CalendarEventItem[]): EventWithLayo
     for (let i = 0; i < group.length; i++) {
       for (let j = i + 1; j < group.length; j++) {
         const e1 = group[i], e2 = group[j];
-        const e1Start = new Date(e1.startTime).getTime();
-        const e2Start = new Date(e2.startTime).getTime();
+        const e1Start = e1.startTime.getTime();
+        const e2Start = e2.startTime.getTime();
         
-        // Simple overlap check
-        const e1End = e1.endTime ? new Date(e1.endTime).getTime() : e1Start + 3600000;
-        const e2End = e2.endTime ? new Date(e2.endTime).getTime() : e2Start + 3600000;
+        const e1End = e1.endTime.getTime();
+        const e2End = e2.endTime.getTime();
         const overlaps = e1Start < e2End && e1End > e2Start;
 
         if (overlaps && Math.abs(e1Start - e2Start) <= TOLERANCE_MS) {
@@ -79,19 +81,19 @@ export function calculateEventLayout(events: CalendarEventItem[]): EventWithLayo
       }
     }
 
-    const layoutState: { event: CalendarEventItem; color: number; pixelIndent: number; chain: number; zIndex: number }[] = [];
+    const layoutState: { event: T; color: number; pixelIndent: number; chain: number; zIndex: number }[] = [];
     const chainMaxColor = new Map<number, number>();
 
     for (const event of group) {
-      const eStart = new Date(event.startTime).getTime();
-      const eEnd = event.endTime ? new Date(event.endTime).getTime() : eStart + 3600000;
+      const eStart = event.startTime.getTime();
+      const eEnd = event.endTime.getTime();
       const myChain = chainId.get(event.id)!;
 
       let color = 0;
       while(true) {
         const conflict = layoutState.some(o => {
-          const oStart = new Date(o.event.startTime).getTime();
-          const oEnd = o.event.endTime ? new Date(o.event.endTime).getTime() : oStart + 3600000;
+          const oStart = o.event.startTime.getTime();
+          const oEnd = o.event.endTime.getTime();
           const overlaps = eStart < oEnd && eEnd > oStart;
           return o.color === color && overlaps && o.chain === myChain;
         });
@@ -102,8 +104,8 @@ export function calculateEventLayout(events: CalendarEventItem[]): EventWithLayo
       // Calculate cascade if we share a color with an overlapping event from a DIFFERENT chain
       let pixelIndent = 0;
       const cascadingOver = layoutState.filter(o => {
-        const oStart = new Date(o.event.startTime).getTime();
-        const oEnd = o.event.endTime ? new Date(o.event.endTime).getTime() : oStart + 3600000;
+        const oStart = o.event.startTime.getTime();
+        const oEnd = o.event.endTime.getTime();
         const overlaps = eStart < oEnd && eEnd > oStart;
         return o.color === color && overlaps;
       });

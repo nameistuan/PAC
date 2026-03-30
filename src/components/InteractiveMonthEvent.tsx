@@ -3,6 +3,7 @@
 import React, { useRef } from 'react'
 import Link from 'next/link'
 import { format } from 'date-fns'
+import { EventSegment } from '@/lib/calendarEngine'
 
 export default function InteractiveMonthEvent({ 
   event, 
@@ -12,7 +13,7 @@ export default function InteractiveMonthEvent({
   timeClassName,
   titleClassName
 }: { 
-  event: any, 
+  event: EventSegment, 
   href: string, 
   className: string,
   dotClassName: string,
@@ -22,13 +23,13 @@ export default function InteractiveMonthEvent({
   const badgeRef = useRef<HTMLAnchorElement>(null)
 
   const handleDragStart = (e: React.DragEvent) => {
-    e.dataTransfer.setData('eventId', event.id)
-    e.dataTransfer.setData('eventStartTime', event.startTime)
+    const actualStart = new Date(event.fullStartTime)
+    const actualEnd = new Date(event.fullEndTime)
     
-    // Safely encode and transport the true underlying duration so multiday events don't collapse to 1hr fallback!
-    const durationMs = event.endTime 
-      ? new Date(event.endTime).getTime() - new Date(event.startTime).getTime() 
-      : 3600000
+    e.dataTransfer.setData('eventId', event.id)
+    e.dataTransfer.setData('eventStartTime', actualStart.toISOString())
+    
+    const durationMs = actualEnd.getTime() - actualStart.getTime()
     e.dataTransfer.setData('eventDurationMs', durationMs.toString())
     
     e.dataTransfer.effectAllowed = 'move'
@@ -58,9 +59,11 @@ export default function InteractiveMonthEvent({
         style={{ backgroundColor: event.project ? event.project.color : 'var(--text-secondary)' }}
       />
       <span className={timeClassName}>
-        {format(new Date(event.startTime), 'h:mma').toLowerCase()}
+        {format(new Date(event.fullStartTime), 'h:mma').toLowerCase()}
       </span>
-      <span className={titleClassName}>{event.title}</span>
+      <span className={titleClassName}>
+        {event.title}
+      </span>
     </Link>
   )
 }

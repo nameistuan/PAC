@@ -122,7 +122,13 @@ export default function EventModal({
     fetch('/api/projects')
       .then(res => res.json())
       .then(data => {
-        setProjects(data.sort((a: Project, b: Project) => a.name.localeCompare(b.name)))
+        const mruId = localStorage.getItem('pac-mru-project')
+        const sorted = data.sort((a: Project, b: Project) => {
+          if (a.id === mruId) return -1
+          if (b.id === mruId) return 1
+          return a.name.localeCompare(b.name)
+        })
+        setProjects(sorted)
       })
       .catch(err => console.error("Failed to fetch projects", err))
       
@@ -156,8 +162,21 @@ export default function EventModal({
     e.preventDefault()
     setIsSubmitting(true)
     
-    const start = new Date(`${startDate}T${startTime}:00`).toISOString()
-    const end = new Date(`${endDate}T${endTime}:00`).toISOString()
+    const start = new Date(`${startDate}T${startTime}:00`)
+    const end = new Date(`${endDate}T${endTime}:00`)
+
+    if (start >= end) {
+      alert("End time must be after start time.")
+      setIsSubmitting(false)
+      return
+    }
+
+    if (projectId) {
+      localStorage.setItem('pac-mru-project', projectId)
+    }
+
+    const startIso = start.toISOString()
+    const endIso = end.toISOString()
 
     try {
       if (isEditing && eventId) {
@@ -165,8 +184,8 @@ export default function EventModal({
           title,
           description,
           location,
-          startTime: start,
-          endTime: end,
+          startTime: startIso,
+          endTime: endIso,
           projectId: projectId || null,
         })
         if (label) {

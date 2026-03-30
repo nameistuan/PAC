@@ -4,6 +4,7 @@ import React, { useRef, useState, useEffect, startTransition } from 'react'
 import { format } from 'date-fns'
 import { useRouter } from 'next/navigation'
 import { deleteEvent, updateEvent } from '@/lib/undoManager'
+import { EventSegment } from '@/lib/calendarEngine'
 
 export default function InteractiveEvent({ 
   event, 
@@ -18,7 +19,7 @@ export default function InteractiveEvent({
   isStartClipped = false,
   isEndClipped = false
 }: { 
-  event: any, 
+  event: EventSegment, 
   href: string, 
   dateStr: string,
   top: number, 
@@ -35,37 +36,28 @@ export default function InteractiveEvent({
   const blockRef = useRef<HTMLDivElement>(null)
   
   const [dragHeight, setDragHeight] = useState(height)
-  const dragHeightRef = useRef(height) // Synchronous bypass for stale closure DOM events
+  const dragHeightRef = useRef(height) 
   const isResizing = useRef(false)
   const justResized = useRef(false)
   const startY = useRef(0)
   const startHeight = useRef(height)
   const currentTargetEndTime = useRef<Date | null>(null)
 
-  const isMoreThanHour = dragHeight > 55 // > 1 hr
-  const is30MinOrLess = dragHeight <= 27 // <= 30 mins
+  const isMoreThanHour = dragHeight > 55 
+  const is30MinOrLess = dragHeight <= 27 
   const is15Min = dragHeight <= 16
 
-  const linkPadding = is15Min ? '0 0.15rem' : '0.25rem 0.5rem'
-
-  // Sync internal drag height if server pushes a prop update
-  // Sync internal drag height if server pushes a prop update
   useEffect(() => {
     setDragHeight(height)
     dragHeightRef.current = height
-    // Recover visibility only once the server data has actually flipped to the new state
     if ((window as any).__pendingEventId === event.id) {
       (window as any).__pendingEventId = null
     }
     setIsHidden(false)
     if (blockRef.current) blockRef.current.style.opacity = '1'
-  }, [height, top, event.startTime, event.endTime])
-
-
-
+  }, [height, top, event.startTime, event.endTime, event.id])
 
   const handleKeyDown = async (e: React.KeyboardEvent) => {
-    // Only delete if not inside a text field
     const tag = (e.target as HTMLElement).tagName
     if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
     
@@ -80,45 +72,39 @@ export default function InteractiveEvent({
       }
     }
   }
+
   const handleDragStart = (e: React.DragEvent) => {
     if (isResizing.current) {
       e.preventDefault()
       return
     }
     
-    // Inject relative timescale data structurally into payload
-    const actualStart = event.fullStartTime ? new Date(event.fullStartTime) : new Date(event.startTime)
-    const actualEnd = event.fullEndTime ? new Date(event.fullEndTime) : new Date(actualStart.getTime() + 3600000)
+    const actualStart = new Date(event.fullStartTime)
+    const actualEnd = new Date(event.fullEndTime)
     const durationMs = actualEnd.getTime() - actualStart.getTime()
     
-    // Calculate the precise chronological offset from the true start of the event to where the cursor grabbed it
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
-    // Calculate cursor's Y position relative to the start of the current column's day grid
     const cursorYInCol = (e.clientY - rect.top) + top
     const cursorDayOffsetMs = (cursorYInCol / 51) * 3600000
     
     const [yyyy, mm, dd] = dateStr.split('-').map(Number)
     const currentDayStart = new Date(yyyy, mm - 1, dd)
     const dragCursorTimeMs = currentDayStart.getTime() + cursorDayOffsetMs
-    
     const cursorOffsetFromStartMs = dragCursorTimeMs - actualStart.getTime()
 
     e.dataTransfer.setData('eventId', event.id)
     e.dataTransfer.effectAllowed = 'move'
     
-    // Globally register internal telemetry structurally
     ;(window as any).__activeDragId = event.id
     ;(window as any).__activeDragCursorOffsetMs = cursorOffsetFromStartMs
     ;(window as any).__activeDragDuration = durationMs
     ;(window as any).__activeDragTitle = event.title
     ;(window as any).__activeDragColor = event.project ? event.project.color : null
     
-    // Pass precise static typography to identically match original visual node
     const startTimeStr = format(actualStart, 'h:mm a')
-    const endTimeStr = event.endTime ? ` - ${format(actualEnd, 'h:mm a')}` : ''
+    const endTimeStr = ` - ${format(actualEnd, 'h:mm a')}`
     ;(window as any).__activeDragTime = startTimeStr + endTimeStr
     
-    // Natively override the browser OS ghost graphic out of the layout rendering
     const blankImg = new Image()
     blankImg.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
     e.dataTransfer.setDragImage(blankImg, 0, 0)
@@ -127,40 +113,29 @@ export default function InteractiveEvent({
   const handleDragEnd = (e: React.DragEvent) => {
     ;(window as any).__activeDragId = null
     ;(window as any).__activeDragCursorOffsetMs = null
-    ;(window as any).__activeDragDuration = null
-    ;(window as any).__activeDragTitle = null
-    ;(window as any).__activeDragColor = null
-    ;(window as any).__activeDragTime = null
-    // Dispatch end to collapse all active ghosts across channels
     window.dispatchEvent(new CustomEvent('pac-resize-end'))
   }
 
   const handlePointerDown = (e: React.PointerEvent) => {
-    e.preventDefault() // Prevents native HTML5 drag-and-drop ghosting conflict
+    e.preventDefault() 
     e.stopPropagation()
     isResizing.current = true
     startY.current = e.clientY
     startHeight.current = dragHeight
-    currentTargetEndTime.current = new Date(event.endTime) // Default to original
+    currentTargetEndTime.current = new Date(event.fullEndTime) 
     
     document.addEventListener('pointermove', handlePointerMove)
     document.addEventListener('pointerup', handlePointerUp)
   }
 
-  // Listen for resize signals to hide real segments while resizer ghost handles the visuals
   useEffect(() => {
     const handlePreview = (e: any) => {
       const { id } = e.detail
-      if (id === event.id) {
-        setIsHidden(true)
-      }
+      if (id === event.id) setIsHidden(true)
     }
     const handleEnd = () => {
-      if ((window as any).__pendingEventId === event.id) {
-        setIsHidden(true)
-      } else {
-        setIsHidden(false)
-      }
+      if ((window as any).__pendingEventId === event.id) setIsHidden(true)
+      else setIsHidden(false)
     }
     window.addEventListener('pac-resize-preview', handlePreview)
     window.addEventListener('pac-resize-end', handleEnd)
@@ -170,30 +145,18 @@ export default function InteractiveEvent({
     }
   }, [event.id])
 
-  // Instantly materialize the true Server implementation without flashing by sensing a network-layer prop change
-  useEffect(() => {
-    if ((window as any).__pendingEventId === event.id) {
-      // Do not consume the ID here! Other segments of a multiday event must also read it to unhide themselves!
-      setIsHidden(false) // Data has arrived from the DB!
-    }
-  }, [event])
-
   const handlePointerMove = (e: PointerEvent) => {
     if (!isResizing.current) return
     
     let el = document.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null
-    while (el && !el.hasAttribute('data-day-col')) {
-      el = el.parentElement
-    }
+    while (el && !el.hasAttribute('data-day-col')) el = el.parentElement
 
     const tDateStr = el?.getAttribute('data-date')
-    const actualStart = event.fullStartTime ? new Date(event.fullStartTime) : new Date(event.startTime)
+    const actualStart = new Date(event.fullStartTime)
 
     if (tDateStr) {
       const rect = el!.getBoundingClientRect()
       const y = e.clientY - rect.top
-      
-      // Strict boundary clamping within the current target day
       const rawMinutes = (y / 51) * 60
       const minutesOnTargetDay = Math.max(0, Math.min(Math.round(rawMinutes / 15) * 15, 24 * 60))
       
@@ -210,10 +173,8 @@ export default function InteractiveEvent({
 
       const minEnd = new Date(actualStart.getTime() + 15 * 60000)
       const finalTargetTime = targetTime < minEnd ? minEnd : targetTime
-      
       currentTargetEndTime.current = finalTargetTime
 
-      // Broadcast unified time for ghost blocks across all columns
       window.dispatchEvent(new CustomEvent('pac-resize-preview', { 
         detail: { 
           id: event.id,
@@ -223,12 +184,8 @@ export default function InteractiveEvent({
           color: event.project ? event.project.color : null
         } 
       }))
-    } else {
-      // Just ignore out-of-bounds mouse moves so the interaction doesn't flick/reset
-      return
     }
   }
-
 
   const handlePointerUp = async (e: PointerEvent) => {
     isResizing.current = false
@@ -236,8 +193,6 @@ export default function InteractiveEvent({
     setTimeout(() => { justResized.current = false }, 100)
     document.removeEventListener('pointermove', handlePointerMove)
     document.removeEventListener('pointerup', handlePointerUp)
-    
-    // Cleanup cross-day previews
     window.dispatchEvent(new CustomEvent('pac-resize-end'))
     
     if (!currentTargetEndTime.current) return
@@ -254,9 +209,8 @@ export default function InteractiveEvent({
         router.refresh()
       })
     } catch (err) {
-      console.error("Resize mutation failed - data integrity preserved.", err)
+      console.error(err)
       setDragHeight(height)
-      dragHeightRef.current = height
     }
   }
 
@@ -275,10 +229,8 @@ export default function InteractiveEvent({
         right: '6px',
         zIndex: zIndex,
         outline: 'none',
-        boxShadow: isLayoutIndented ? 'inset 0 0 0 1px rgba(0,0,0,0.05), 0 0 0 1.5px var(--surface-color), 0 4px 6px rgba(0,0,0,0.15), 0 1px 3px rgba(0,0,0,0.1)' : 'inset 0 0 0 1px rgba(0,0,0,0.1)', // Uniform inset shadow
+        boxShadow: isLayoutIndented ? 'inset 0 0 0 1px rgba(0,0,0,0.05), 0 0 0 1.5px var(--surface-color), 0 4px 6px rgba(0,0,0,0.15), 0 1px 3px rgba(0,0,0,0.1)' : 'inset 0 0 0 1px rgba(0,0,0,0.1)',
         backgroundColor: event.project ? `${event.project.color}33` : 'var(--surface-hover)',
-        backdropFilter: isLayoutIndented ? 'blur(8px)' : 'none',
-        WebkitBackdropFilter: isLayoutIndented ? 'blur(8px)' : 'none',
         color: event.project ? event.project.color : 'var(--text-primary)',
         borderRight: isLayoutIndented ? '1px solid var(--border-color)' : 'none',
         borderLeft: `4px solid ${event.project ? event.project.color : 'var(--border-color)'}`,
@@ -292,9 +244,9 @@ export default function InteractiveEvent({
         borderBottom: isEndClipped ? `2px dashed ${event.project ? event.project.color : 'rgba(0,0,0,0.5)'}` : (isLayoutIndented ? '1px solid var(--border-color)' : 'none'),
         overflow: 'hidden',
         fontSize: is15Min ? '0.65rem' : '0.75rem',
-        opacity: (isStartClipped || isEndClipped) ? 0.85 : 1, // Subtle aesthetic fade to convey linkage
+        opacity: (isStartClipped || isEndClipped) ? 0.85 : 1,
         lineHeight: 1.2,
-        fontWeight: 500, // Balanced weight
+        fontWeight: 500,
         padding: is15Min ? '0px 4px' : '4px 6px'
       }}
       draggable
@@ -303,8 +255,6 @@ export default function InteractiveEvent({
       onClick={(e) => {
         e.stopPropagation()
         if (justResized.current) return
-        
-        // Use local positioning for robustness across Next.js transitions
         let anchorParams = ''
         if (blockRef.current) {
           const rect = blockRef.current.getBoundingClientRect()
@@ -313,59 +263,31 @@ export default function InteractiveEvent({
         router.push(`${href}${anchorParams}`, { scroll: false })
       }}
     >
-      <div 
-        style={{ 
-          display: 'flex', 
-          flexDirection: is30MinOrLess ? 'row' : 'column',
-          justifyContent: is30MinOrLess ? 'space-between' : 'flex-start',
-          alignItems: 'flex-start',
-          gap: is30MinOrLess ? '6px' : '0px',
-          height: '100%', 
-          width: '100%', 
-          color: 'inherit', 
-          padding: 0,
-          overflow: 'hidden'
-        }}
-      >
+      <div style={{ display: 'flex', flexDirection: is30MinOrLess ? 'row' : 'column', justifyContent: is30MinOrLess ? 'space-between' : 'flex-start', alignItems: 'flex-start', gap: is30MinOrLess ? '6px' : '0px', height: '100%', width: '100%', color: 'inherit', padding: 0, overflow: 'hidden' }}>
         <div style={{ fontWeight: 500, flexShrink: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-          {isStartClipped ? `↳ ${event.title}` : event.title}
+          {event.title}
         </div>
-        {!isStartClipped && (
-          <div style={{ opacity: 0.8, fontSize: '0.7rem', flexShrink: 0, whiteSpace: 'nowrap' }}>
-            {(() => {
-              const actualStart = event.fullStartTime ? new Date(event.fullStartTime) : new Date(event.startTime)
-              const actualEnd = event.fullEndTime ? new Date(event.fullEndTime) : (event.endTime ? new Date(event.endTime) : null)
-              
+        <div style={{ opacity: 0.8, fontSize: '0.7rem', flexShrink: 0, whiteSpace: 'nowrap' }}>
+          {(() => {
+              const actualStart = new Date(event.fullStartTime)
+              const actualEnd = new Date(event.fullEndTime)
               const startStr = format(actualStart, 'h:mm a')
-              
-              if (!actualEnd) return startStr
-              const trueDurationMs = actualEnd.getTime() - actualStart.getTime()
-              if (trueDurationMs <= 3600000 && dragHeight <= 55) return startStr
-              
               const isMultiday = format(actualStart, 'yyyy-MM-dd') !== format(actualEnd, 'yyyy-MM-dd')
-              const endStr = isMultiday 
-                ? format(actualEnd, 'EEE, h:mm a') 
-                : format(actualEnd, 'h:mm a')
-                
+              
+              if (!isMultiday && dragHeight <= 55) return startStr
+              
+              const endStr = isMultiday ? format(actualEnd, 'EEE, h:mm a') : format(actualEnd, 'h:mm a')
               return `${startStr} → ${endStr}`
             })()}
-          </div>
-        )}
+        </div>
       </div>
       
-      {/* Structural Resizer Hook */}
-      <div 
-        onPointerDown={handlePointerDown}
-        style={{
-          position: 'absolute',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          height: '8px',
-          cursor: 'ns-resize',
-          zIndex: 10
-        }}
-      />
+      {!isEndClipped && (
+        <div 
+          onPointerDown={handlePointerDown}
+          style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '8px', cursor: 'ns-resize', zIndex: 10 }}
+        />
+      )}
     </div>
   )
 }
