@@ -80,7 +80,7 @@ export default async function DayView({
         {/* Time Column */}
         <div className={styles.timeCol}>
           {hours.map(hour => (
-            <div key={hour} className={styles.timeLabel} style={{ top: `${hour * HOUR_HEIGHT}px` }}>
+            <div key={hour} className={styles.timeLabel} style={{ top: `calc(var(--hour-height) * ${hour})` }}>
               {hour === 0 ? '' : format(new Date().setHours(hour, 0), 'ha')}
             </div>
           ))}
@@ -101,8 +101,8 @@ export default async function DayView({
                   const startMin = le.displayStart.getMinutes()
                   
                   const durationMs = le.displayEnd.getTime() - le.displayStart.getTime()
-                  const top = (startHour * HOUR_HEIGHT) + (startMin * (HOUR_HEIGHT / 60))
-                  const height = Math.max((durationMs / 3600000) * HOUR_HEIGHT, 12)
+                  const topFraction = startHour + (startMin / 60)
+                  const heightFraction = durationMs / 3600000
 
                   return (
                     <InteractiveEvent
@@ -110,8 +110,8 @@ export default async function DayView({
                       event={le}
                       href={getEventUrl(le.id)}
                       dateStr={dateStr}
-                      top={top}
-                      height={height}
+                      topFraction={topFraction}
+                      heightFraction={heightFraction}
                       assignedLeft={le.assignedLeft}
                       isLayoutIndented={le.isLayoutIndented}
                       zIndex={le.zIndex}

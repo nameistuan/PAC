@@ -11,8 +11,8 @@ export default function InteractiveEvent({
   event, 
   href, 
   dateStr,
-  top, 
-  height,
+  topFraction, 
+  heightFraction,
   className,
   assignedLeft = '2px',
   isLayoutIndented = false,
@@ -23,8 +23,8 @@ export default function InteractiveEvent({
   event: EventSegment, 
   href: string, 
   dateStr: string,
-  top: number, 
-  height: number,
+  topFraction: number, 
+  heightFraction: number,
   className: string,
   assignedLeft?: string,
   isLayoutIndented?: boolean,
@@ -36,27 +36,36 @@ export default function InteractiveEvent({
   const router = useRouter()
   const blockRef = useRef<HTMLDivElement>(null)
   
-  const [dragHeight, setDragHeight] = useState(height)
-  const dragHeightRef = useRef(height) 
   const isResizing = useRef(false)
   const justResized = useRef(false)
   const startY = useRef(0)
-  const startHeight = useRef(height)
   const currentTargetEndTime = useRef<Date | null>(null)
 
-  const isMoreThanHour = dragHeight > 55 
-  const is30MinOrLess = dragHeight <= 27 
-  const is15Min = dragHeight <= 16
+  // Use state to track zoom, re-calculating typography thresholds dynamically
+  const [currentScale, setCurrentScale] = useState(1)
 
   useEffect(() => {
-    setDragHeight(height)
-    dragHeightRef.current = height
     if ((window as any).__pendingEventId === event.id) {
       (window as any).__pendingEventId = null
     }
     setIsHidden(false)
     if (blockRef.current) blockRef.current.style.opacity = '1'
-  }, [height, top, event.startTime, event.endTime, event.id])
+    
+    // Subscribe to zoom
+    const onZoom = () => {
+      const hScale = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--hour-height')) || 38
+      setCurrentScale(hScale / 38)
+    }
+    onZoom()
+    window.addEventListener('pac-scale-change', onZoom)
+    return () => window.removeEventListener('pac-scale-change', onZoom)
+  }, [event.startTime, event.endTime, event.id])
+
+  // Thresholds use the active scaled pixel value
+  const activeScaledPixelHeight = heightFraction * 38 * currentScale
+  const isMoreThanHour = heightFraction >= 1 
+  const is30MinOrLess = heightFraction <= 0.5 
+  const is15Min = heightFraction <= 0.25
 
   const handleKeyDown = async (e: React.KeyboardEvent) => {
     const tag = (e.target as HTMLElement).tagName
@@ -84,9 +93,15 @@ export default function InteractiveEvent({
     const actualEnd = new Date(event.fullEndTime)
     const durationMs = actualEnd.getTime() - actualStart.getTime()
     
+    const hScale = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--hour-height')) || 38
+
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
-    const cursorYInCol = (e.clientY - rect.top) + top
-    const cursorDayOffsetMs = (cursorYInCol / HOUR_HEIGHT) * 3600000
+    // calculate pixel offset in column coordinate system
+    const topPixelsStr = getComputedStyle(e.currentTarget as HTMLElement).top
+    const topPixels = parseFloat(topPixelsStr) || 0
+    const cursorYInCol = (e.clientY - rect.top) + topPixels
+    
+    const cursorDayOffsetMs = (cursorYInCol / hScale) * 3600000
     
     const [yyyy, mm, dd] = dateStr.split('-').map(Number)
     const currentDayStart = new Date(yyyy, mm - 1, dd)
@@ -122,7 +137,6 @@ export default function InteractiveEvent({
     e.stopPropagation()
     isResizing.current = true
     startY.current = e.clientY
-    startHeight.current = dragHeight
     currentTargetEndTime.current = new Date(event.fullEndTime) 
     
     document.addEventListener('pointermove', handlePointerMove)
@@ -158,7 +172,8 @@ export default function InteractiveEvent({
     if (tDateStr) {
       const rect = el!.getBoundingClientRect()
       const y = e.clientY - rect.top
-      const rawMinutes = (y / HOUR_HEIGHT) * 60
+      const hScale = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--hour-height')) || 38
+      const rawMinutes = (y / hScale) * 60
       const minutesOnTargetDay = Math.max(0, Math.min(Math.round(rawMinutes / 15) * 15, 24 * 60))
       
       const [yyyy, mm, dd] = tDateStr.split('-').map(Number)
@@ -211,7 +226,6 @@ export default function InteractiveEvent({
       })
     } catch (err) {
       console.error(err)
-      setDragHeight(height)
     }
   }
 
@@ -223,8 +237,8 @@ export default function InteractiveEvent({
       onKeyDown={handleKeyDown}
       style={{
         display: isHidden ? 'none' : 'block',
-        top: `${top}px`,
-        height: `${dragHeight}px`,
+        top: `calc(var(--hour-height) * ${topFraction})`,
+        height: `max(16px, calc(var(--hour-height) * ${heightFraction}))`,
         position: 'absolute',
         left: assignedLeft,
         right: '6px',
@@ -244,7 +258,7 @@ export default function InteractiveEvent({
         borderTop: isStartClipped ? `2px dashed ${event.project ? event.project.color : 'rgba(0,0,0,0.5)'}` : (isLayoutIndented ? '1px solid var(--border-color)' : 'none'),
         borderBottom: isEndClipped ? `2px dashed ${event.project ? event.project.color : 'rgba(0,0,0,0.5)'}` : (isLayoutIndented ? '1px solid var(--border-color)' : 'none'),
         overflow: 'hidden',
-        fontSize: is15Min ? '0.65rem' : '0.75rem',
+        fontSize: is15Min ? '0.7rem' : '0.85rem',
         opacity: (isStartClipped || isEndClipped) ? 0.85 : 1,
         lineHeight: 1.2,
         fontWeight: 500,
@@ -265,18 +279,18 @@ export default function InteractiveEvent({
       }}
     >
       <div style={{ display: 'flex', flexDirection: is30MinOrLess ? 'row' : 'column', justifyContent: is30MinOrLess ? 'space-between' : 'flex-start', alignItems: 'flex-start', gap: is30MinOrLess ? '6px' : '0px', height: '100%', width: '100%', color: 'inherit', padding: 0, overflow: 'hidden' }}>
-        <div style={{ fontWeight: 500, flexShrink: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+        <div style={{ fontWeight: 600, flexShrink: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
           {event.title}
         </div>
-        <div style={{ opacity: 0.8, fontSize: '0.7rem', flexShrink: 0, whiteSpace: 'nowrap' }}>
+        <div style={{ opacity: 0.8, fontSize: '0.75rem', flexShrink: 0, whiteSpace: 'nowrap' }}>
           {(() => {
               const actualStart = new Date(event.fullStartTime)
               const actualEnd = new Date(event.fullEndTime)
               const isMultiday = format(actualStart, 'yyyy-MM-dd') !== format(actualEnd, 'yyyy-MM-dd')
-              if (!isMultiday && dragHeight <= 55) return format(actualStart, 'h:mm a')
+              if (!isMultiday && activeScaledPixelHeight <= 55) return format(actualStart, 'h:mm a')
               
-              const startStr = isMultiday ? format(actualStart, 'EEE, h:mm a') : format(actualStart, 'h:mm a')
-              const endStr = isMultiday ? format(actualEnd, 'EEE, h:mm a') : format(actualEnd, 'h:mm a')
+              const startStr = isMultiday ? format(actualStart, 'EEE, h:mm a').toUpperCase() : format(actualStart, 'h:mm a')
+              const endStr = isMultiday ? format(actualEnd, 'EEE, h:mm a').toUpperCase() : format(actualEnd, 'h:mm a')
               return `${startStr} → ${endStr}`
             })()}
         </div>

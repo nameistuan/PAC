@@ -12,6 +12,8 @@
   
   --grid-border: #f1f5f9;
   --event-bg-opacity: 0.15;
+  --hour-height: 38px;
+  --total-grid-height: calc(var(--hour-height) * 24);
 }
 
 @media (prefers-color-scheme: dark) {

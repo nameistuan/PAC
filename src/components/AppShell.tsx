@@ -65,7 +65,7 @@ export default function AppShell({
   } else if (monthParam) {
     currentDate = parseISO(`${monthParam}-01T12:00:00Z`)
   } else if (pathname === '/week') {
-    currentDate = startOfWeek(new Date())
+    currentDate = startOfWeek(new Date(), { weekStartsOn: 0 })
   }
 
   let displayDate = format(currentDate, 'MMMM yyyy')
@@ -104,33 +104,47 @@ export default function AppShell({
     prevDateRef.current = currentDate
   }
 
+  // Optimistic UI state for fluid rapid-clicking without waiting for Next.js Server Roundtrips!
+  const [internalDate, setInternalDate] = useState<Date>(currentDate)
+  useEffect(() => { setInternalDate(currentDate) }, [currentDate.getTime()])
+
   const handlePrev = () => {
-    let prev = currentDate
-    if (pathname === '/') prev = subMonths(currentDate, 1)
-    if (pathname === '/week') prev = subWeeks(currentDate, 1)
-    if (pathname === '/day') prev = subDays(currentDate, 4)
-    router.push(`${pathname}?date=${format(prev, 'yyyy-MM-dd')}`)
+    let prev = internalDate
+    if (pathname === '/') prev = subMonths(internalDate, 1)
+    if (pathname === '/week') prev = subDays(internalDate, 1)
+    if (pathname === '/day') prev = subDays(internalDate, 1)
+    setInternalDate(prev)
+    router.push(`${pathname}?date=${format(prev, 'yyyy-MM-dd')}`, { scroll: false })
   }
 
   const handleNext = () => {
-    let next = currentDate
-    if (pathname === '/') next = addMonths(currentDate, 1)
-    if (pathname === '/week') next = addWeeks(currentDate, 1)
-    if (pathname === '/day') next = addDays(currentDate, 4)
-    router.push(`${pathname}?date=${format(next, 'yyyy-MM-dd')}`)
+    let next = internalDate
+    if (pathname === '/') next = addMonths(internalDate, 1)
+    if (pathname === '/week') next = addDays(internalDate, 1)
+    if (pathname === '/day') next = addDays(internalDate, 1)
+    setInternalDate(next)
+    router.push(`${pathname}?date=${format(next, 'yyyy-MM-dd')}`, { scroll: false })
   }
   
-  const handlePrevDay = () => router.push(`${pathname}?date=${format(subDays(currentDate, 1), 'yyyy-MM-dd')}`)
-  const handleNextDay = () => router.push(`${pathname}?date=${format(addDays(currentDate, 1), 'yyyy-MM-dd')}`)
+  const handlePrevDay = () => {
+    const prev = subDays(internalDate, 1)
+    setInternalDate(prev)
+    router.push(`${pathname}?date=${format(prev, 'yyyy-MM-dd')}`, { scroll: false })
+  }
+  const handleNextDay = () => {
+    const next = addDays(internalDate, 1)
+    setInternalDate(next)
+    router.push(`${pathname}?date=${format(next, 'yyyy-MM-dd')}`, { scroll: false })
+  }
 
-  const latestRefs = useRef({ currentDate, pathname, isEventModalOpen: isModalVisuallyOpen })
+  const latestRefs = useRef({ internalDate, pathname, isEventModalOpen: isModalVisuallyOpen })
   useEffect(() => {
-    latestRefs.current = { currentDate, pathname, isEventModalOpen: isModalVisuallyOpen }
-  }, [currentDate, pathname, isModalVisuallyOpen])
+    latestRefs.current = { internalDate, pathname, isEventModalOpen: isModalVisuallyOpen }
+  }, [internalDate, pathname, isModalVisuallyOpen])
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      const { currentDate: cDate, pathname: pName, isEventModalOpen: isModal } = latestRefs.current
+      const { internalDate: cDate, pathname: pName, isEventModalOpen: isModal } = latestRefs.current
       if (document.activeElement && ['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return
       if (isModal) return
 
@@ -138,12 +152,14 @@ export default function AppShell({
         let prev = cDate
         if (pName === '/') prev = subMonths(cDate, 1)
         else prev = subDays(cDate, 1)
-        router.push(`${pName}?date=${format(prev, 'yyyy-MM-dd')}`)
+        setInternalDate(prev)
+        router.push(`${pName}?date=${format(prev, 'yyyy-MM-dd')}`, { scroll: false })
       } else if (e.key === 'ArrowRight') {
         let next = cDate
         if (pName === '/') next = addMonths(cDate, 1)
         else next = addDays(cDate, 1)
-        router.push(`${pName}?date=${format(next, 'yyyy-MM-dd')}`)
+        setInternalDate(next)
+        router.push(`${pName}?date=${format(next, 'yyyy-MM-dd')}`, { scroll: false })
       } else if ((e.metaKey || e.ctrlKey) && e.key === 'z' && !e.shiftKey) {
         e.preventDefault()
         undo().then(label => {
@@ -165,6 +181,39 @@ export default function AppShell({
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [router])
+
+  const [gridScale, setGridScale] = useState(1)
+
+  useEffect(() => {
+    const cached = localStorage.getItem('pac_grid_scale')
+    if (cached) setGridScale(parseFloat(cached))
+  }, [])
+
+  useEffect(() => {
+    document.documentElement.style.setProperty('--hour-height', `${38 * gridScale}px`)
+    document.documentElement.style.setProperty('--total-grid-height', `calc(var(--hour-height) * 24)`)
+    localStorage.setItem('pac_grid_scale', gridScale.toString())
+    window.dispatchEvent(new CustomEvent('pac-scale-change', { detail: gridScale }))
+  }, [gridScale])
+
+  useEffect(() => {
+    const handleWheel = (e: WheelEvent) => {
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault()
+        setGridScale(prev => {
+          let newScale = prev - (e.deltaY * 0.005)
+          if (newScale < 0.5) newScale = 0.5
+          if (newScale > 3) newScale = 3
+          return newScale
+        })
+      }
+    }
+    const pageContent = document.getElementById('grid-scroll-container')
+    if (pageContent) {
+      pageContent.addEventListener('wheel', handleWheel, { passive: false })
+      return () => pageContent.removeEventListener('wheel', handleWheel)
+    }
+  }, [])
 
   const showToast = (message: string) => {
     setToast(message)
@@ -284,11 +333,12 @@ export default function AppShell({
           </div>
           
           <div className={styles.topbarRight}>
-            <div className={styles.viewToggle}>
-              <button 
-                className={`${styles.toggleBtn} ${pathname === '/' ? styles.active : ''}`}
-                onClick={() => router.push(dateParam ? `/?date=${dateParam}` : '/')}
-              >Month</button>
+              <div className={styles.viewToggle}>
+                <button 
+                  className={`${styles.toggleBtn} ${pathname === '/' ? styles.active : ''}`}
+                  onClick={() => router.push(`/?date=${format(currentDate, 'yyyy-MM-dd')}`)}
+                >
+Month</button>
               <button 
                 className={`${styles.toggleBtn} ${pathname === '/week' ? styles.active : ''}`}
                 onClick={() => router.push(dateParam ? `/week?date=${dateParam}` : '/week')}
@@ -303,11 +353,16 @@ export default function AppShell({
           </div>
         </header>
         
-        <div 
-          key={`${pathname}-${dateParam || monthParam || 'today'}`} 
-          className={`${styles.pageContent} ${slideDirectionRef.current === 'forward' ? styles.slideForward : styles.slideBackward}`}
-        >
-          {children}
+        {/* Page Content Viewport */}
+        <div id="grid-scroll-container" className={styles.pageContent}>
+          {/* Context-aware wrapper for animations depending on date direction */}
+          <div 
+            key={currentDate.toISOString()} 
+            className={slideDirectionRef.current === 'forward' ? styles.slideForward : styles.slideBackward}
+            style={{ height: '100%' }}
+          >
+            {children}
+          </div>
         </div>
 
         {/* Floating Chevrons for 1-day micro-navigation */}
