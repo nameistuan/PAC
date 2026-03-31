@@ -1,8 +1,8 @@
 'use client'
 
 import React, { ReactNode, useState, useEffect, useRef, startTransition } from 'react'
-import { useRouter } from 'next/navigation'
-import { format } from 'date-fns'
+import { useRouter, usePathname } from 'next/navigation'
+import { format, isToday, parseISO } from 'date-fns'
 import { updateEvent } from '@/lib/undoManager'
 
 const getCurrentHourHeight = () => {
@@ -12,9 +12,26 @@ const getCurrentHourHeight = () => {
 
 export default function InteractiveDayCol({ dateStr, className, children, style }: { dateStr: string, className: string, children: ReactNode, style?: React.CSSProperties }) {
   const router = useRouter()
+  const pathname = usePathname()
   const colRef = useRef<HTMLDivElement>(null)
   
   const [isPendingDrop, setIsPendingDrop] = useState(false)
+  const [nowFraction, setNowFraction] = useState<number | null>(null)
+
+  // Current time indicator — only for today's column
+  useEffect(() => {
+    const [yyyy, mm, dd] = dateStr.split('-').map(Number)
+    const colDate = new Date(yyyy, mm - 1, dd)
+    if (!isToday(colDate)) return
+
+    const update = () => {
+      const now = new Date()
+      setNowFraction(now.getHours() + now.getMinutes() / 60)
+    }
+    update()
+    const interval = setInterval(update, 60000)
+    return () => clearInterval(interval)
+  }, [dateStr])
 
   // Drag-to-create state
   const [isCreating, setIsCreating] = useState(false)
@@ -35,17 +52,13 @@ export default function InteractiveDayCol({ dateStr, className, children, style 
   useEffect(() => {
     // The exact millisecond fresh DB data hits the screen, obliterate any placeholder ghosts 
     // to prevent visual stacking (which previously caused colors to temporarily darken)
-    setResizeYFraction(null)
-    setResizeHeightFraction(null)
-    
-    if (isPendingDrop) {
-      setIsPendingDrop(false)
-    }
-    
     // Globally safely obliterate the pending ID after the React tree has finished propagating the data
-    setTimeout(() => {
+    const timer = setTimeout(() => {
+      setResizeYFraction(null)
+      setResizeHeightFraction(null)
       ;(window as any).__pendingEventId = null
-    }, 50)
+    }, 50) // Micro-delay to ensure browser has painted the new Server Component before ghost vanishes
+    return () => clearTimeout(timer)
   }, [children])
 
   // Listen for multi-day resize previews
@@ -103,12 +116,11 @@ export default function InteractiveDayCol({ dateStr, className, children, style 
       }
     }
     const handleResizeEnd = () => {
-      // The primary 'clean up' happens automatically the millisecond [children] updates via network completion.
-      // However, we maintain a robust fail-safe here to clear the ghost after 1500ms in the sheer case a network error swallows the refresh.
+      // Handled primarily by the [children] effect, but this fail-safe clears stale ghosts if the network fails.
       setTimeout(() => {
         setResizeYFraction(null)
         setResizeHeightFraction(null)
-      }, 1500)
+      }, 2000)
     }
 
     window.addEventListener('pac-resize-preview', handleResizePreview)
@@ -314,7 +326,7 @@ export default function InteractiveDayCol({ dateStr, className, children, style 
         if (existingParams.has('date')) params.set('date', existingParams.get('date')!)
         if (existingParams.has('month')) params.set('month', existingParams.get('month')!)
 
-        router.push(`/week?${params.toString()}`, { scroll: false })
+        router.push(`${pathname}?${params.toString()}`, { scroll: false })
       }
       setIsCreating(false)
       setCreateStartFraction(null)
@@ -352,8 +364,33 @@ export default function InteractiveDayCol({ dateStr, className, children, style 
       {isPendingDrop && (
         <div style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(255,255,255,0.05)', zIndex: 10, pointerEvents: 'none' }} />
       )}
+      {/* Current time indicator */}
+      {nowFraction !== null && (
+        <div style={{
+          position: 'absolute',
+          left: 0,
+          right: 0,
+          top: `calc(var(--hour-height) * ${nowFraction})`,
+          height: '2px',
+          backgroundColor: '#ea4335',
+          zIndex: 60,
+          pointerEvents: 'none',
+        }}>
+          <div style={{
+            position: 'absolute',
+            left: '-4px',
+            top: '50%',
+            transform: 'translateY(-50%)',
+            width: '10px',
+            height: '10px',
+            borderRadius: '50%',
+            backgroundColor: '#ea4335',
+          }} />
+        </div>
+      )}
+
       {children}
-      
+
       {/* Creation Preview Ghost Block */}
       {isCreating && ghostHeight > 0 && (
         <div 
@@ -363,11 +400,11 @@ export default function InteractiveDayCol({ dateStr, className, children, style 
             height: `calc(var(--hour-height) * ${ghostHeight})`,
             left: '2px',
             right: '6px',
-            backgroundColor: 'rgba(79, 70, 229, 0.4)',
-            border: '1px solid rgba(79, 70, 229, 0.8)',
-            borderLeft: '4px solid var(--primary-color)',
+            backgroundColor: 'var(--primary-color)',
+            border: '1px solid rgba(0,0,0,0.1)',
+            borderLeft: '4px solid #fff',
             borderRadius: '4px',
-            zIndex: 40,
+            zIndex: 500,
             pointerEvents: 'none',
             display: 'flex',
             alignItems: 'flex-start',
@@ -403,15 +440,13 @@ export default function InteractiveDayCol({ dateStr, className, children, style 
             height: `max(16px, calc(var(--hour-height) * ${resizeHeightFraction}))`,
             left: '2px',
             right: '6px',
-            backgroundColor: resizeColor ? `${resizeColor}4D` : 'rgba(255, 255, 255, 0.25)', // 30% opacity
-            border: resizeColor ? `1px solid ${resizeColor}B3` : '1px solid var(--text-secondary)',
-            borderLeft: `4px dashed ${resizeColor || 'var(--text-secondary)'}`, // Dotted to indicate "pending move"
+            backgroundColor: resizeColor ? `${resizeColor}33` : 'var(--surface-hover)', // Match real event 20% opacity
+            border: `1px solid ${resizeColor || 'var(--border-color)'}`,
+            borderLeft: `4px solid ${resizeColor || 'var(--border-color)'}`, // Solid for 'preview' feel
             borderRadius: '4px',
-            zIndex: 45, // Above standard events
+            zIndex: 45, 
             pointerEvents: 'none',
-            opacity: 0.85,
             boxShadow: '0 8px 16px rgba(0,0,0,0.15)',
-            transition: 'top 0.05s linear, height 0.05s linear', // Ultra-fast smoothing
             padding: '4px 6px',
             color: resizeColor || 'var(--text-primary)',
             fontSize: '0.75rem',

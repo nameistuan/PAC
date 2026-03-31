@@ -1,7 +1,8 @@
 'use client'
 
-import { ReactNode } from 'react'
-import { useRouter } from 'next/navigation'
+import { ReactNode, startTransition } from 'react'
+import { useRouter, usePathname, useSearchParams } from 'next/navigation'
+import { updateEvent } from '@/lib/undoManager'
 
 export default function InteractiveMonthCell({ 
   dateStr, 
@@ -13,6 +14,21 @@ export default function InteractiveMonthCell({
   children: ReactNode 
 }) {
   const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+
+  const handleClick = (e: React.MouseEvent) => {
+    // Don't open create modal if clicking on an event badge
+    let el = e.target as HTMLElement | null
+    while (el && el !== e.currentTarget) {
+      if (el.tagName === 'A' || el.getAttribute('data-event-block') === 'true') return
+      el = el.parentElement
+    }
+    const params = new URLSearchParams(searchParams.toString())
+    params.set('create', 'true')
+    params.set('createDate', dateStr)
+    router.push(`/?${params.toString()}`, { scroll: false })
+  }
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault()
@@ -38,15 +54,16 @@ export default function InteractiveMonthCell({
     const dropEndDate = new Date(dropStartDate.getTime() + durationMs)
 
     try {
-      await fetch(`/api/events/${eventId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          startTime: dropStartDate.toISOString(),
-          endTime: dropEndDate.toISOString()
-        })
+      const label = await updateEvent(eventId, {
+        startTime: dropStartDate.toISOString(),
+        endTime: dropEndDate.toISOString()
       })
-      router.refresh()
+      if (label) {
+        window.dispatchEvent(new CustomEvent('pac-toast', { detail: `Moved "${label}" — Press ⌘Z to undo` }))
+      }
+      startTransition(() => {
+        router.refresh()
+      })
     } catch (err) {
       console.error("Failed to execute Month DND swap", err)
     }
@@ -61,12 +78,14 @@ export default function InteractiveMonthCell({
   }
 
   return (
-    <div 
-      className={className} 
-      onDragOver={handleDragOver} 
+    <div
+      className={className}
+      onClick={handleClick}
+      onDragOver={handleDragOver}
       onDrop={handleDrop}
       onDragEnter={handleDragEnter}
       onDragLeave={handleDragLeave}
+      style={{ cursor: 'default' }}
     >
       {children}
     </div>

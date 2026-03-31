@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, startTransition, useLayoutEffect } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import styles from './EventModal.module.css'
 import { deleteEvent, updateEvent, pushCreate } from '@/lib/undoManager'
 
@@ -27,18 +27,45 @@ export default function EventModal({
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [location, setLocation] = useState('')
-  const [startDate, setStartDate] = useState(initialDate || new Date().toISOString().slice(0, 10))
-  const [endDate, setEndDate] = useState(initialDate || new Date().toISOString().slice(0, 10))
-  const [startTime, setStartTime] = useState(initialStartTime || '09:00')
-  const [endTime, setEndTime] = useState(initialEndTime || '10:00')
+  // Robust parsing: if passed an ISO string (e.g. from InteractiveDayCol), extract only what the <input type="time"> needs
+  const parseInitTime = (val: string | undefined, fallback: string) => {
+    if (!val) return fallback
+    if (val.includes('T')) return val.split('T')[1].slice(0, 5)
+    return val
+  }
+  const parseInitDate = (val: string | undefined) => {
+    if (!val) return new Date().toISOString().slice(0, 10)
+    if (val.includes('T')) return val.split('T')[0]
+    return val
+  }
+
+  const [startDate, setStartDate] = useState(() => parseInitDate(initialDate))
+  const [endDate, setEndDate] = useState(() => parseInitDate(initialDate))
+  const [startTime, setStartTime] = useState(() => parseInitTime(initialStartTime, '09:00'))
+  const [endTime, setEndTime] = useState(() => parseInitTime(initialEndTime, '10:00'))
+  const [isFluid, setIsFluid] = useState(false)
   const [projectId, setProjectId] = useState('')
-  
   const [projects, setProjects] = useState<Project[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
   const isEditing = !!eventId
   const router = useRouter()
+  const pathname = usePathname()
   const searchParams = useSearchParams()
   const modalRef = useRef<HTMLDivElement>(null)
+
+  // Sync props to state for rapid drag-creation without unmounting
+  useEffect(() => {
+    if (!isEditing) {
+      if (initialDate) {
+        const d = parseInitDate(initialDate)
+        setStartDate(d)
+        setEndDate(d)
+      }
+      if (initialStartTime) setStartTime(parseInitTime(initialStartTime, '09:00'))
+      if (initialEndTime) setEndTime(parseInitTime(initialEndTime, '10:00'))
+    }
+  }, [initialDate, initialStartTime, initialEndTime, isEditing])
+  
   const [modalPos, setModalPos] = useState<{ top: number; left: number } | null>(null)
   // Position the modal next to the anchor event (read from URL or fallback)
   const calculatePosition = () => {
@@ -84,10 +111,19 @@ export default function EventModal({
     } else {
       // Centered fallback
       const vw = document.documentElement.clientWidth
-      const vh = document.documentElement.clientHeight
-      setModalPos({ top: vh * 0.15, left: Math.max(16, (vw - 440) / 2) })
+      setModalPos(null)
     }
   }
+
+  // Positioning and UX listeners
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    calculatePosition()
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [searchParams])
 
   // Monitor size changes (like when projects/notes load) and window resizing
   useLayoutEffect(() => {
@@ -145,16 +181,18 @@ export default function EventModal({
           setEndDate(`${end.getFullYear()}-${String(end.getMonth() + 1).padStart(2, '0')}-${String(end.getDate()).padStart(2, '0')}`)
           setStartTime(`${String(start.getHours()).padStart(2, '0')}:${String(start.getMinutes()).padStart(2, '0')}`)
           setEndTime(`${String(end.getHours()).padStart(2, '0')}:${String(end.getMinutes()).padStart(2, '0')}`)
+          setIsFluid(data.isFluid ?? false)
           setProjectId(data.projectId || '')
         })
         .catch(err => console.error("Failed to load focal event", err))
     } else {
       if (initialDate) {
-        setStartDate(initialDate)
-        setEndDate(initialDate)
+        const d = parseInitDate(initialDate)
+        setStartDate(d)
+        setEndDate(d)
       }
-      if (initialStartTime) setStartTime(initialStartTime)
-      if (initialEndTime) setEndTime(initialEndTime)
+      if (initialStartTime) setStartTime(parseInitTime(initialStartTime, '09:00'))
+      if (initialEndTime) setEndTime(parseInitTime(initialEndTime, '10:00'))
     }
   }, [eventId, initialDate, initialStartTime, initialEndTime])
 
@@ -162,10 +200,15 @@ export default function EventModal({
     e.preventDefault()
     setIsSubmitting(true)
     
-    const start = new Date(`${startDate}T${startTime}:00`)
-    const end = new Date(`${endDate}T${endTime}:00`)
+    // All-day events span the full day
+    const start = isFluid
+      ? new Date(`${startDate}T00:00:00`)
+      : new Date(`${startDate}T${startTime}:00`)
+    const end = isFluid
+      ? new Date(`${endDate}T23:59:59`)
+      : new Date(`${endDate}T${endTime}:00`)
 
-    if (start >= end) {
+    if (!isFluid && start >= end) {
       alert("End time must be after start time.")
       setIsSubmitting(false)
       return
@@ -187,6 +230,7 @@ export default function EventModal({
           startTime: startIso,
           endTime: endIso,
           projectId: projectId || null,
+          isFluid,
         })
         if (label) {
           window.dispatchEvent(new CustomEvent('pac-toast', { detail: `Edited "${title}" — Press ⌘Z to undo` }))
@@ -201,7 +245,8 @@ export default function EventModal({
             location: location || undefined,
             startTime: start,
             endTime: end,
-            projectId: projectId || undefined
+            projectId: projectId || undefined,
+            isFluid,
           })
         })
         const created = await res.json()
@@ -244,10 +289,17 @@ export default function EventModal({
   }
 
   return (
-    <div className={styles.modalOverlay} onMouseDown={onClose}>
+    <div className={styles.modalOverlay} onClick={onClose}>
       <div 
+        ref={modalRef}
         className={styles.modalContent} 
-        onMouseDown={(e) => e.stopPropagation()}
+        onClick={(e) => e.stopPropagation()} // Prevent closing when clicking inside
+        style={{
+          top: modalPos ? `${modalPos.top}px` : '50%',
+          left: modalPos ? `${modalPos.left}px` : '50%',
+          transform: modalPos ? 'none' : 'translate(-50%, -50%)',
+          position: 'absolute'
+        }}
         tabIndex={-1}
         onKeyDown={(e) => {
           const tag = document.activeElement?.tagName
@@ -257,10 +309,8 @@ export default function EventModal({
             handleDelete()
           }
         }}
-        ref={modalRef}
-        style={modalPos ? { top: modalPos.top, left: modalPos.left } : { display: 'none' }}
       >
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} className={styles.modalForm}>
           {/* Header Icons (Google style) */}
           <div className={styles.topIconBar}>
             {isEditing && (
@@ -300,14 +350,23 @@ export default function EventModal({
                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
               </div>
               <div className={styles.timeInputsWrapper} style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '8px', padding: '4px 0' }}>
+                 <label className={styles.allDayToggle}>
+                   <input
+                     type="checkbox"
+                     checked={isFluid}
+                     onChange={e => setIsFluid(e.target.checked)}
+                     className={styles.allDayCheckbox}
+                   />
+                   All day
+                 </label>
                  <div style={{ display: 'flex', gap: '8px', width: '100%', alignItems: 'center' }}>
                      <input type="date" required value={startDate} onChange={e => setStartDate(e.target.value)} />
-                     <input type="time" required value={startTime} onChange={e => setStartTime(e.target.value)} />
+                     {!isFluid && <input type="time" required value={startTime} onChange={e => setStartTime(e.target.value)} />}
                  </div>
                  <div style={{ marginLeft: '4px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>to</div>
                  <div style={{ display: 'flex', gap: '8px', width: '100%', alignItems: 'center' }}>
                      <input type="date" required value={endDate} onChange={e => setEndDate(e.target.value)} />
-                     <input type="time" required value={endTime} onChange={e => setEndTime(e.target.value)} />
+                     {!isFluid && <input type="time" required value={endTime} onChange={e => setEndTime(e.target.value)} />}
                  </div>
               </div>
             </div>

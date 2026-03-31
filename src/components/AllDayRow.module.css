@@ -1,0 +1,43 @@
+.timeCell {
+  border-right: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color);
+  background-color: var(--surface-color);
+  position: sticky;
+  top: 50px; /* sits just below the sticky day headers */
+  z-index: 18;
+}
+
+.cell {
+  border-right: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color);
+  background-color: var(--surface-color);
+  position: sticky;
+  top: 50px;
+  z-index: 18;
+  padding: 3px 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-height: 28px;
+}
+
+.chip {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  border-radius: 3px;
+  padding: 2px 5px;
+  font-size: 0.72rem;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.chip:hover {
+  opacity: 0.8;
+}

@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google'
 import { cookies } from 'next/headers'
 import './globals.css'
 import AppShell from '../components/AppShell'
+import prisma from '@/lib/prisma'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -23,12 +24,15 @@ export default async function RootLayout({
   const defaultSidebarOpen = sidebarOpenStr !== 'false'
   const defaultSidebarWidth = sidebarWidthStr ? Number(sidebarWidthStr) : 250
 
+  const projects = await prisma.project.findMany({ orderBy: { name: 'asc' } })
+
   return (
     <html lang="en" className={inter.className}>
       <body>
-        <AppShell 
+        <AppShell
           defaultSidebarOpen={defaultSidebarOpen}
           defaultSidebarWidth={defaultSidebarWidth}
+          initialProjects={projects}
         >
           {children}
         </AppShell>

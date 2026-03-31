@@ -1,25 +1,32 @@
 'use client'
 
-import { useState, useRef, useEffect, startTransition } from 'react'
+import { useState, useRef, useEffect, startTransition, useMemo } from 'react'
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
-import { format, addMonths, subMonths, addWeeks, subWeeks, addDays, subDays, parseISO, startOfWeek, endOfWeek } from 'date-fns'
+import { format, addMonths, subMonths, addWeeks, subWeeks, addDays, subDays, parseISO, startOfWeek } from 'date-fns'
 import styles from './AppShell.module.css'
 import EventModal from './EventModal'
+import ProjectSidebar from './ProjectSidebar'
+import MiniCalendar from './MiniCalendar'
+import SearchPopover from './SearchPopover'
 import { undo, redo } from '@/lib/undoManager'
 
-export default function AppShell({ 
+export default function AppShell({
   children,
   defaultSidebarOpen = true,
-  defaultSidebarWidth = 250
-}: { 
+  defaultSidebarWidth = 250,
+  initialProjects = []
+}: {
   children: React.ReactNode,
   defaultSidebarOpen?: boolean,
-  defaultSidebarWidth?: number
+  defaultSidebarWidth?: number,
+  initialProjects?: { id: string; name: string; color: string }[]
 }) {
   const [sidebarWidth, setSidebarWidth] = useState(defaultSidebarWidth)
   const [isSidebarOpen, setIsSidebarOpen] = useState(defaultSidebarOpen)
   const [isMounted, setIsMounted] = useState(false)
   const [isEventModalOpen, setIsEventModalOpen] = useState(false)
+  const [isSearchOpen, setIsSearchOpen] = useState(false)
+  const [gridScale] = useState(1)
   const [toast, setToast] = useState<string | null>(null)
   const searchParams = useSearchParams()
   const router = useRouter()
@@ -27,10 +34,9 @@ export default function AppShell({
   
   const editEventId = searchParams.get('editEvent')
   const createParam = searchParams.get('create')
-  const createDateParam = searchParams.get('createDate')
-  const startTimeParam = searchParams.get('startTime')
-  const endTimeParam = searchParams.get('endTime')
-  
+  const dateParam = searchParams.get('date')
+  const monthParam = searchParams.get('month') 
+
   const isModalVisuallyOpen = isEventModalOpen || !!editEventId || createParam === 'true'
 
   const handleCloseModal = () => {
@@ -40,12 +46,10 @@ export default function AppShell({
       newParams.delete('editEvent')
       newParams.delete('create')
       newParams.delete('createDate')
-      newParams.delete('startTime')
-      newParams.delete('endTime')
-      const targetQuery = newParams.toString()
-      router.push(targetQuery ? `${pathname}?${targetQuery}` : pathname, { scroll: false })
+      router.push(`${pathname}?${newParams.toString()}`, { scroll: false })
     }
   }
+
   useEffect(() => {
     if (isMounted) {
       document.cookie = `pac_sidebar_width=${sidebarWidth}; path=/; max-age=31536000`
@@ -54,65 +58,31 @@ export default function AppShell({
       setIsMounted(true)
     }
   }, [sidebarWidth, isSidebarOpen, isMounted])
-  
-  const dateParam = searchParams.get('date')
-  const monthParam = searchParams.get('month') // Fallback
-  
-  // Read exactly at noon to avoid timezone shift dropping it to prev day
-  let currentDate = new Date()
-  if (dateParam) {
-    currentDate = parseISO(`${dateParam}T12:00:00Z`)
-  } else if (monthParam) {
-    currentDate = parseISO(`${monthParam}-01T12:00:00Z`)
-  } else if (pathname === '/week') {
-    currentDate = startOfWeek(new Date(), { weekStartsOn: 0 })
-  }
 
-  let displayDate = format(currentDate, 'MMMM yyyy')
-  if (pathname === '/day') {
-    const startFourDay = subDays(currentDate, 1)
-    const endFourDay = addDays(currentDate, 2)
-    if (startFourDay.getMonth() === endFourDay.getMonth()) {
-      displayDate = format(startFourDay, 'MMMM yyyy') // Both within same month
-    } else if (startFourDay.getFullYear() === endFourDay.getFullYear()) {
-      displayDate = `${format(startFourDay, 'MMM')} - ${format(endFourDay, 'MMM yyyy')}`
-    } else {
-      displayDate = `${format(startFourDay, 'MMM yyyy')} - ${format(endFourDay, 'MMM yyyy')}`
-    }
-  } else if (pathname === '/week') {
-    const weekStart = new Date(currentDate)
-    const weekEnd = new Date(currentDate)
-    weekEnd.setDate(weekEnd.getDate() + 6)
-    if (weekStart.getMonth() === weekEnd.getMonth()) {
-      displayDate = format(weekStart, 'MMMM yyyy')
-    } else if (weekStart.getFullYear() === weekEnd.getFullYear()) {
-      displayDate = `${format(weekStart, 'MMM')} - ${format(weekEnd, 'MMM yyyy')}`
-    } else {
-      displayDate = `${format(weekStart, 'MMM yyyy')} - ${format(weekEnd, 'MMM yyyy')}`
-    }
-  }
+  // Hydration-Stable 'Now' Reference: Stabilize timezone noise by forcing a noon-UTC anchor
+  const [nowStable] = useState(() => {
+    const d = new Date()
+    return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 12, 0, 0))
+  })
 
-  // Calculate slide direction iteratively during render
-  const prevDateRef = useRef(currentDate)
-  const slideDirectionRef = useRef<'forward'|'backward'>('forward')
-  
-  if (currentDate.getTime() > prevDateRef.current.getTime()) {
-    slideDirectionRef.current = 'forward'
-    prevDateRef.current = currentDate
-  } else if (currentDate.getTime() < prevDateRef.current.getTime()) {
-    slideDirectionRef.current = 'backward'
-    prevDateRef.current = currentDate
-  }
+  const currentDate = useMemo(() => {
+    if (dateParam) return parseISO(`${dateParam}T12:00:00Z`)
+    if (monthParam) return parseISO(`${monthParam}-01T12:00:00Z`)
+    
+    // When on an empty path, default logically to the stable 'Now' reference
+    if (pathname === '/week') return startOfWeek(nowStable, { weekStartsOn: 0 })
+    return nowStable
+  }, [dateParam, monthParam, pathname, nowStable])
 
-  // Optimistic UI state for fluid rapid-clicking without waiting for Next.js Server Roundtrips!
   const [internalDate, setInternalDate] = useState<Date>(currentDate)
   useEffect(() => { setInternalDate(currentDate) }, [currentDate.getTime()])
 
   const handlePrev = () => {
     let prev = internalDate
     if (pathname === '/') prev = subMonths(internalDate, 1)
-    if (pathname === '/week') prev = subDays(internalDate, 1)
-    if (pathname === '/day') prev = subDays(internalDate, 1)
+    else if (pathname === '/week') prev = subWeeks(internalDate, 1)
+    else if (pathname === '/day') prev = subDays(internalDate, 4)
+    else prev = subDays(internalDate, 1)
     setInternalDate(prev)
     router.push(`${pathname}?date=${format(prev, 'yyyy-MM-dd')}`, { scroll: false })
   }
@@ -120,12 +90,19 @@ export default function AppShell({
   const handleNext = () => {
     let next = internalDate
     if (pathname === '/') next = addMonths(internalDate, 1)
-    if (pathname === '/week') next = addDays(internalDate, 1)
-    if (pathname === '/day') next = addDays(internalDate, 1)
+    else if (pathname === '/week') next = addWeeks(internalDate, 1)
+    else if (pathname === '/day') next = addDays(internalDate, 4)
+    else next = addDays(internalDate, 1)
     setInternalDate(next)
     router.push(`${pathname}?date=${format(next, 'yyyy-MM-dd')}`, { scroll: false })
   }
-  
+
+  const handleToday = () => {
+    const target = new Date()
+    setInternalDate(target)
+    router.push(`${pathname}?date=${format(target, 'yyyy-MM-dd')}`, { scroll: false })
+  }
+
   const handlePrevDay = () => {
     const prev = subDays(internalDate, 1)
     setInternalDate(prev)
@@ -137,82 +114,96 @@ export default function AppShell({
     router.push(`${pathname}?date=${format(next, 'yyyy-MM-dd')}`, { scroll: false })
   }
 
-  const latestRefs = useRef({ internalDate, pathname, isEventModalOpen: isModalVisuallyOpen })
+  // Real Webpage Scrolling Engine: High-Performance native overflow tracking
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const isSettingScrollRef = useRef(false)
+  const lastScrollPos = useRef(0)
+
   useEffect(() => {
-    latestRefs.current = { internalDate, pathname, isEventModalOpen: isModalVisuallyOpen }
-  }, [internalDate, pathname, isModalVisuallyOpen])
+    const container = scrollRef.current
+    if (!container) return
+    
+    const centerView = () => {
+      const width = container.offsetWidth
+      if (width > 0) {
+        if (Math.abs(container.scrollLeft - width) > 5) {
+          isSettingScrollRef.current = true
+          container.scrollLeft = width
+          lastScrollPos.current = width
+          // Release the lock after a short frame to let the browser paint the scroll
+          requestAnimationFrame(() => {
+            isSettingScrollRef.current = false
+          })
+        }
+      } else {
+        requestAnimationFrame(centerView)
+      }
+    }
+    centerView()
+    
+    const onScroll = () => {
+      if (isSettingScrollRef.current) return // Filter out programmatic re-centering
+      
+      const pos = container.scrollLeft
+      const width = container.offsetWidth
+      if (width <= 0) return 
+      
+      const posPct = pos / width
+      
+      // Robust Thresholding: Only trigger if we've scrolled deep into a side buffer
+      if (posPct < 0.15) { // User is near the absolute left edge
+        isSettingScrollRef.current = true
+        handlePrev()
+      } 
+      else if (posPct > 1.85) { // User is near the absolute right edge
+        isSettingScrollRef.current = true
+        handleNext()
+      }
+    }
+
+    container.addEventListener('scroll', onScroll, { passive: true })
+    return () => container.removeEventListener('scroll', onScroll)
+  }, [pathname, internalDate.getTime()])
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      const { internalDate: cDate, pathname: pName, isEventModalOpen: isModal } = latestRefs.current
-      if (document.activeElement && ['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return
-      if (isModal) return
+      const tag = (e.target as HTMLElement).tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
+      if (isModalVisuallyOpen) return
 
-      if (e.key === 'ArrowLeft') {
-        let prev = cDate
-        if (pName === '/') prev = subMonths(cDate, 1)
-        else prev = subDays(cDate, 1)
-        setInternalDate(prev)
-        router.push(`${pName}?date=${format(prev, 'yyyy-MM-dd')}`, { scroll: false })
-      } else if (e.key === 'ArrowRight') {
-        let next = cDate
-        if (pName === '/') next = addMonths(cDate, 1)
-        else next = addDays(cDate, 1)
-        setInternalDate(next)
-        router.push(`${pName}?date=${format(next, 'yyyy-MM-dd')}`, { scroll: false })
-      } else if ((e.metaKey || e.ctrlKey) && e.key === 'z' && !e.shiftKey) {
-        e.preventDefault()
-        undo().then(label => {
-          if (label) {
-            showToast(label)
-            startTransition(() => router.refresh())
-          }
-        })
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault(); setIsSearchOpen(true); return
+      }
+      if (e.key === 'ArrowLeft') handlePrev()
+      else if (e.key === 'ArrowRight') handleNext()
+      else if (e.key === 't' || e.key === 'T') handleToday()
+      else if (e.key === '1') router.push(`/?date=${format(internalDate, 'yyyy-MM-dd')}`)
+      else if (e.key === '2') router.push(`/week?date=${format(internalDate, 'yyyy-MM-dd')}`)
+      else if (e.key === '3') router.push(`/day?date=${format(internalDate, 'yyyy-MM-dd')}`)
+      else if ((e.metaKey || e.ctrlKey) && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault(); undo().then(l => { if(l) { showToast(l); startTransition(()=>router.refresh()) } })
       } else if ((e.metaKey || e.ctrlKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
-        e.preventDefault()
-        redo().then(label => {
-          if (label) {
-            showToast(label)
-            startTransition(() => router.refresh())
-          }
-        })
+        e.preventDefault(); redo().then(l => { if(l) { showToast(l); startTransition(()=>router.refresh()) } })
       }
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [router])
-
-  const [gridScale, setGridScale] = useState(1)
-
-  useEffect(() => {
-    const cached = localStorage.getItem('pac_grid_scale')
-    if (cached) setGridScale(parseFloat(cached))
-  }, [])
+  }, [internalDate, pathname, isModalVisuallyOpen])
 
   useEffect(() => {
     document.documentElement.style.setProperty('--hour-height', `${38 * gridScale}px`)
     document.documentElement.style.setProperty('--total-grid-height', `calc(var(--hour-height) * 24)`)
-    localStorage.setItem('pac_grid_scale', gridScale.toString())
     window.dispatchEvent(new CustomEvent('pac-scale-change', { detail: gridScale }))
   }, [gridScale])
 
+  // Listen for pac-toast events dispatched by drag/resize/edit/delete operations
   useEffect(() => {
-    const handleWheel = (e: WheelEvent) => {
-      if (e.ctrlKey || e.metaKey) {
-        e.preventDefault()
-        setGridScale(prev => {
-          let newScale = prev - (e.deltaY * 0.005)
-          if (newScale < 0.5) newScale = 0.5
-          if (newScale > 3) newScale = 3
-          return newScale
-        })
-      }
+    const handleToast = (e: Event) => {
+      const detail = (e as CustomEvent).detail
+      if (typeof detail === 'string') showToast(detail)
     }
-    const pageContent = document.getElementById('grid-scroll-container')
-    if (pageContent) {
-      pageContent.addEventListener('wheel', handleWheel, { passive: false })
-      return () => pageContent.removeEventListener('wheel', handleWheel)
-    }
+    window.addEventListener('pac-toast', handleToast)
+    return () => window.removeEventListener('pac-toast', handleToast)
   }, [])
 
   const showToast = (message: string) => {
@@ -220,169 +211,77 @@ export default function AppShell({
     setTimeout(() => setToast(null), 3500)
   }
 
-  useEffect(() => {
-    const handler = (e: Event) => {
-      const detail = (e as CustomEvent).detail
-      if (detail) showToast(detail)
-    }
-    window.addEventListener('pac-toast', handler)
-    return () => window.removeEventListener('pac-toast', handler)
-  }, [])
-  
+  // Sidebar Handle logic
   const isResizing = useRef(false)
-
-  const startResizing = () => {
-    isResizing.current = true
-    document.body.style.cursor = 'col-resize'
-    document.body.style.userSelect = 'none'
-  }
-
-  const stopResizing = () => {
-    if (isResizing.current) {
-      isResizing.current = false
-      document.body.style.cursor = 'default'
-      document.body.style.userSelect = 'auto'
-    }
-  }
-
+  const startResizing = () => { isResizing.current = true; document.body.style.cursor = 'col-resize'; }
+  const stopResizing = () => { isResizing.current = false; document.body.style.cursor = 'default'; }
   const resize = (e: MouseEvent) => {
     if (isResizing.current) {
-      let newWidth = e.clientX
-      if (newWidth < 200) newWidth = 200 // Min width
-      if (newWidth > 500) newWidth = 500 // Max width
-      setSidebarWidth(newWidth)
+      let nw = Math.max(200, Math.min(500, e.clientX))
+      setSidebarWidth(nw)
     }
   }
-
   useEffect(() => {
-    window.addEventListener('mousemove', resize)
-    window.addEventListener('mouseup', stopResizing)
-    return () => {
-      window.removeEventListener('mousemove', resize)
-      window.removeEventListener('mouseup', stopResizing)
-    }
+    window.addEventListener('mousemove', resize); window.addEventListener('mouseup', stopResizing)
+    return () => { window.removeEventListener('mousemove', resize); window.removeEventListener('mouseup', stopResizing) }
   }, [])
 
   return (
     <div className={styles.appContainer}>
-      {/* Sidebar - Render continuously but compress width to 0px natively for animation */}
-      <aside 
-        className={`${styles.sidebar} ${!isSidebarOpen ? styles.sidebarClosed : ''}`} 
-        style={{ width: isSidebarOpen ? `${sidebarWidth}px` : '0px' }}
-      >
-        <div className={styles.sidebarHeader}>
-          <h1 className={styles.logo}>PAC</h1>
-        </div>
-        
+      <aside className={`${styles.sidebar} ${!isSidebarOpen ? styles.sidebarClosed : ''}`} style={{ width: isSidebarOpen ? `${sidebarWidth}px` : '0px' }}>
+        <div className={styles.sidebarHeader}><h2 className={styles.logo}>PAC</h2></div>
         <nav className={styles.sidebarNav}>
-          {/* Project Boards will be mapped here later */}
-          <div className={styles.navSection}>
-            <h3 className={styles.sectionTitle}>My Courses</h3>
-            <ul className={styles.projectList}>
-              <li className={styles.projectItem}>
-                <span className={styles.colorDot} style={{backgroundColor: '#8F6B91'}}></span>
-                Biology 101
-              </li>
-              <li className={styles.projectItem}>
-                <span className={styles.colorDot} style={{backgroundColor: '#10b981'}}></span>
-                Engineering
-              </li>
-            </ul>
-          </div>
+          <MiniCalendar
+            currentDate={internalDate}
+            pathname={pathname}
+            onNavigate={(date) => {
+              setInternalDate(date)
+              router.push(`${pathname}?date=${format(date, 'yyyy-MM-dd')}`, { scroll: false })
+            }}
+          />
+          <ProjectSidebar initialProjects={initialProjects} />
         </nav>
       </aside>
-
-      {/* Interactive Resizer Handle */}
-      <div 
-        className={`${styles.resizer} ${!isSidebarOpen ? styles.resizerHidden : ''}`} 
-        onMouseDown={startResizing} 
-        style={{ pointerEvents: isSidebarOpen ? 'auto' : 'none' }}
-      />
-
-      {/* Main Content Area */}
+      <div className={`${styles.resizer} ${!isSidebarOpen ? styles.resizerHidden : ''}`} onMouseDown={startResizing} />
       <div className={styles.mainContent}>
         <header className={styles.topbar}>
           <div className={styles.topbarLeft}>
-            <button className={styles.hamburgerBtn} onClick={() => setIsSidebarOpen(!isSidebarOpen)}>
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M3 12H21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M3 6H21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M3 18H21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </button>
+            <button className={styles.hamburgerBtn} onClick={() => setIsSidebarOpen(!isSidebarOpen)}><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 12H21M3 6H21M3 18H21"/></svg></button>
             <div className={styles.monthNavButtons}>
-              <button className={styles.iconBtn} onClick={handlePrev}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-                </svg>
-              </button>
-              <button 
-                className={styles.todayBtn} 
-                onClick={() => router.push(pathname)}
-              >
-                Today
-              </button>
-              <button className={styles.iconBtn} onClick={handleNext}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                </svg>
-              </button>
+              <button className={styles.iconBtn} onClick={handlePrev}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 19l-7-7 7-7" /></svg></button>
+              <button className={styles.todayBtn} onClick={handleToday}>Today</button>
+              <button className={styles.iconBtn} onClick={handleNext}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 5l7 7-7 7" /></svg></button>
             </div>
-            
-            <h2 className={styles.displayDate}>{displayDate}</h2>
+            <h2 className={styles.displayDate}>{format(internalDate, pathname === '/' ? 'MMMM yyyy' : 'MMM d, yyyy')}</h2>
           </div>
-          
           <div className={styles.topbarRight}>
-              <div className={styles.viewToggle}>
-                <button 
-                  className={`${styles.toggleBtn} ${pathname === '/' ? styles.active : ''}`}
-                  onClick={() => router.push(`/?date=${format(currentDate, 'yyyy-MM-dd')}`)}
-                >
-Month</button>
-              <button 
-                className={`${styles.toggleBtn} ${pathname === '/week' ? styles.active : ''}`}
-                onClick={() => router.push(dateParam ? `/week?date=${dateParam}` : '/week')}
-              >Week</button>
-              <button 
-                className={`${styles.toggleBtn} ${pathname === '/day' ? styles.active : ''}`}
-                onClick={() => router.push(dateParam ? `/day?date=${dateParam}` : '/day')}
-              >4 Day</button>
+            <div className={styles.viewToggle}>
+              <button className={`${styles.toggleBtn} ${pathname === '/' ? styles.active : ''}`} onClick={() => router.push(`/?date=${format(internalDate, 'yyyy-MM-dd')}`)}>Month</button>
+              <button className={`${styles.toggleBtn} ${pathname === '/week' ? styles.active : ''}`} onClick={() => router.push(`/week?date=${format(internalDate, 'yyyy-MM-dd')}`)}>Week</button>
+              <button className={`${styles.toggleBtn} ${pathname === '/day' ? styles.active : ''}`} onClick={() => router.push(`/day?date=${format(internalDate, 'yyyy-MM-dd')}`)}>4 Day</button>
             </div>
-            
+            <button className={styles.searchBtn} onClick={() => setIsSearchOpen(true)} title="Search events (⌘K)">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+            </button>
             <button className={styles.addButton} onClick={() => setIsEventModalOpen(true)}>+ New Event</button>
           </div>
         </header>
-        
-        {/* Page Content Viewport */}
-        <div id="grid-scroll-container" className={styles.pageContent}>
-          {/* Context-aware wrapper for animations depending on date direction */}
-          <div 
-            key={currentDate.toISOString()} 
-            className={slideDirectionRef.current === 'forward' ? styles.slideForward : styles.slideBackward}
-            style={{ height: '100%' }}
-          >
-            {children}
+
+        <div className={styles.pageContent}>
+          <div ref={scrollRef} className={styles.scrollContainer}>
+            <div className={styles.scrollSpacer} /> 
+            <div className={styles.scrollPage}> {children} </div>
+            <div className={styles.scrollSpacer} />
           </div>
         </div>
 
-        {/* Floating Chevrons for 1-day micro-navigation */}
         {pathname !== '/' && (
           <>
-            <button 
-              className={`${styles.floatingArrow} ${styles.floatingArrowLeft}`}
-              onClick={handlePrevDay}
-            >
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-              </svg>
+            <button className={`${styles.floatingArrow} ${styles.floatingArrowLeft}`} onClick={handlePrevDay}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 19l-7-7 7-7" /></svg>
             </button>
-            <button 
-              className={`${styles.floatingArrow} ${styles.floatingArrowRight}`}
-              onClick={handleNextDay}
-            >
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-              </svg>
+            <button className={`${styles.floatingArrow} ${styles.floatingArrowRight}`} onClick={handleNextDay}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 5l7 7-7 7" /></svg>
             </button>
           </>
         )}
@@ -392,17 +291,11 @@ Month</button>
         <EventModal 
           eventId={editEventId || undefined} 
           onClose={handleCloseModal}
-          initialDate={createDateParam || undefined}
-          initialStartTime={startTimeParam || undefined}
-          initialEndTime={endTimeParam || undefined}
+          initialDate={searchParams.get('createDate') || undefined}
         />
       )}
-
-      {toast && (
-        <div className={styles.toast}>
-          {toast}
-        </div>
-      )}
+      {isSearchOpen && <SearchPopover onClose={() => setIsSearchOpen(false)} />}
+      {toast && <div className={styles.toast}>{toast}</div>}
     </div>
   )
 }

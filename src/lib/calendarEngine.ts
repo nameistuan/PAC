@@ -23,6 +23,7 @@ export interface EventSegment extends CalendarEvent {
   isEndClipped: boolean;
   fullStartTime: Date;
   fullEndTime: Date;
+  isFluid: boolean;
 }
 
 /**
@@ -65,6 +66,7 @@ export function prepareEventsForGrid(
           isEndClipped: eEnd.getTime() > dayEnd.getTime() + 1,
           fullStartTime: eStart,
           fullEndTime: eEnd,
+          isFluid: !!event.isFluid,
           // For compatibility with legacy layout functions if they expect startTime/endTime
           startTime: clippedStart,
           endTime: clippedEnd,

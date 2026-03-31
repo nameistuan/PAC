@@ -10,6 +10,7 @@ import {
 import Link from 'next/link'
 import InteractiveDayCol from '@/components/InteractiveDayCol'
 import InteractiveEvent from '@/components/InteractiveEvent'
+import AllDayRow from '@/components/AllDayRow'
 import { calculateEventLayout } from '@/lib/groupEvents'
 
 import { prepareEventsForGrid } from '@/lib/calendarEngine'
@@ -39,11 +40,11 @@ export default async function DayView({
     return `/day?${params.toString()}`
   }
   
+  // Standard Block Logic: Target date is Slot 1, showing 4 days total
   const startDate = new Date(currentDate)
-  startDate.setDate(startDate.getDate() - 1)
   startDate.setHours(0,0,0,0)
-  const endDate = new Date(currentDate)
-  endDate.setDate(endDate.getDate() + 2)
+  const endDate = new Date(startDate)
+  endDate.setDate(endDate.getDate() + 3)
   endDate.setHours(23,59,59,999)
   
   const daysInGrid = eachDayOfInterval({ start: startDate, end: endDate })
@@ -62,7 +63,17 @@ export default async function DayView({
   // 1. Centralized Slicing & Processing
   const daySegmentsMap = prepareEventsForGrid(rawEvents, startDate, endDate);
 
+  // Separate all-day (fluid) events per day
+  const allDayByDate: Record<string, { id: string; title: string; project?: { color: string } | null }[]> = {}
+  daysInGrid.forEach(day => {
+    const dateStr = format(day, 'yyyy-MM-dd')
+    allDayByDate[dateStr] = (daySegmentsMap.get(dateStr) ?? [])
+      .filter(s => s.isFluid)
+      .map(s => ({ id: s.id, title: s.title, project: s.project }))
+  })
+
   const hours = Array.from({ length: 24 }).map((_, i) => i)
+  const dayStrs = daysInGrid.map(d => format(d, 'yyyy-MM-dd'))
 
   return (
     <div className={styles.weekView}>
@@ -77,6 +88,14 @@ export default async function DayView({
           </div>
         ))}
       
+        {/* All-day row */}
+        <AllDayRow
+          days={dayStrs}
+          eventsByDate={allDayByDate}
+          baseUrl="/day"
+          dateParam={resolvedParams.date}
+        />
+
         {/* Time Column */}
         <div className={styles.timeCol}>
           {hours.map(hour => (
@@ -89,8 +108,8 @@ export default async function DayView({
         {/* Days Grid */}
         {daysInGrid.map(day => {
             const dateStr = format(day, 'yyyy-MM-dd')
-            const daySegments = daySegmentsMap.get(dateStr) || []
-            
+            const daySegments = (daySegmentsMap.get(dateStr) || []).filter(s => !s.isFluid)
+
             // 2. Perform Layout Clustering
             const layoutEvents = calculateEventLayout(daySegments)
 

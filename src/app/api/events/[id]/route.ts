@@ -11,7 +11,11 @@ export async function GET(
       where: { id },
       include: { project: true }
     })
-    if (!event) return NextResponse.json({ error: 'Event not found' }, { status: 404 })
+    
+    if (!event) {
+      return NextResponse.json({ error: 'Event not found' }, { status: 404 })
+    }
+    
     return NextResponse.json(event)
   } catch (error) {
     console.error('Failed to fetch event:', error)
@@ -26,22 +30,17 @@ export async function PUT(
   try {
     const { id } = await params
     const body = await request.json()
-    const { title, description, location, startTime, endTime, taskId, projectId, isFluid } = body
-
+    
+    // Convert date strings to Date objects if they exist
+    const updateData: any = { ...body }
+    if (updateData.startTime) updateData.startTime = new Date(updateData.startTime)
+    if (updateData.endTime) updateData.endTime = new Date(updateData.endTime)
+    
     const event = await prisma.event.update({
       where: { id },
-      data: {
-        title,
-        description,
-        location: location !== undefined ? location : undefined,
-        startTime: startTime ? new Date(startTime) : undefined,
-        endTime: endTime ? new Date(endTime) : undefined,
-        taskId: taskId !== undefined ? taskId : undefined,
-        projectId: projectId !== undefined ? projectId : undefined,
-        isFluid: isFluid !== undefined ? isFluid : undefined
-      }
+      data: updateData
     })
-
+    
     return NextResponse.json(event)
   } catch (error) {
     console.error('Failed to update event:', error)
@@ -58,7 +57,8 @@ export async function DELETE(
     await prisma.event.delete({
       where: { id }
     })
-    return new NextResponse(null, { status: 204 })
+    
+    return NextResponse.json({ success: true })
   } catch (error) {
     console.error('Failed to delete event:', error)
     return NextResponse.json({ error: 'Failed to delete event' }, { status: 500 })

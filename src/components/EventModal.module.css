@@ -4,9 +4,12 @@
   left: 0;
   width: 100vw;
   height: 100vh;
-  background-color: transparent;
+  background-color: rgba(0, 0, 0, 0.35); /* Subtle dark backdrop for focus */
+  backdrop-filter: blur(2.5px); /* Premium macOS feel */
+  -webkit-backdrop-filter: blur(2.5px);
   z-index: 1000;
   animation: fadeIn 0.2s ease-out;
+  cursor: pointer;
 }
 
 .modalContent {
@@ -14,14 +17,15 @@
   background-color: var(--surface-color);
   border-radius: 12px;
   width: 440px;
-  max-width: 90vw;
-  max-height: 85vh;
+  max-width: 95vw;
+  max-height: 90vh;
   overflow-y: auto;
-  box-shadow: 0 24px 38px 3px rgba(0,0,0,0.14), 0 9px 46px 8px rgba(0,0,0,0.12), 0 11px 15px -7px rgba(0,0,0,0.2);
+  box-shadow: 0 24px 38px 3px rgba(0,0,0,0.2), 0 9px 46px 8px rgba(0,0,0,0.15);
   display: flex;
   flex-direction: column;
   animation: popIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   outline: none;
+  cursor: default;
 }
 
 @keyframes fadeIn {
@@ -30,8 +34,8 @@
 }
 
 @keyframes popIn {
-  from { transform: scale(0.95); opacity: 0; }
-  to { transform: scale(1); opacity: 1; }
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 /* Scrollbar styling for a premium feel */
@@ -50,6 +54,29 @@
   justify-content: flex-end;
   gap: 0.5rem;
   align-items: center;
+}
+
+.closeBtn {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background-color: var(--surface-hover);
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 10;
+  transition: all 0.2s;
+}
+
+.closeBtn:hover {
+  background-color: #fee2e2;
+  color: #ef4444;
 }
 
 .iconBtn, .closeIconBtn {
@@ -135,6 +162,24 @@
   display: flex;
   justify-content: center;
   color: var(--text-secondary);
+}
+
+/* All-day toggle */
+.allDayToggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  user-select: none;
+}
+
+.allDayCheckbox {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--primary-color);
+  cursor: pointer;
 }
 
 /* Time & Date Inputs */

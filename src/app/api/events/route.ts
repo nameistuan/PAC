@@ -1,10 +1,16 @@
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const { searchParams } = new URL(request.url)
+    const q = searchParams.get('q')?.trim()
+
     const events = await prisma.event.findMany({
-      orderBy: { startTime: 'asc' }
+      where: q ? { title: { contains: q } } : undefined,
+      orderBy: { startTime: 'desc' },
+      take: q ? 20 : undefined,
+      include: { project: true },
     })
     return NextResponse.json(events)
   } catch (error) {

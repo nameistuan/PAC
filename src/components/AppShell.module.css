@@ -243,6 +243,26 @@
   border: 1px solid var(--border-color);
 }
 
+.searchBtn {
+  background: transparent;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--text-secondary);
+  transition: all 0.2s;
+}
+
+.searchBtn:hover {
+  background-color: var(--surface-hover);
+  color: var(--text-primary);
+  border-color: var(--text-secondary);
+}
+
 .addButton {
   background-color: var(--primary-color);
   color: white;
@@ -263,8 +283,42 @@
 
 .pageContent {
   flex-grow: 1;
-  overflow-y: auto;
   position: relative;
+  overflow: hidden; /* Hide the scrollbars but keep the container scrollable */
+}
+
+.scrollContainer {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE 10+ */
+  scroll-behavior: smooth;
+}
+
+.scrollContainer::-webkit-scrollbar {
+  display: none; /* Chrome/Safari */
+}
+
+.scrollPage {
+  flex: 0 0 100%;
+  width: 100%;
+  height: 100%;
+  scroll-snap-align: center;
+  position: relative;
+}
+
+.scrollSpacer {
+  flex: 0 0 100%; /* Wider "buffer" to allow generous swiping */
+  width: 100%;
+  height: 100%;
+  scroll-snap-align: center;
+  background-image: 
+    linear-gradient(to right, var(--grid-border) 1px, transparent 1px);
+  background-size: calc(100% / 7) 100%;
+  opacity: 0.1;
 }
 
 .slideForward {

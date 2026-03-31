@@ -10,6 +10,7 @@
   --text-secondary: #76758B; /* secondary works great for labels/subtext! */
   --border-color: #e2e8f0;
   
+  --surface-hover: #f1f5f9;
   --grid-border: #f1f5f9;
   --event-bg-opacity: 0.15;
   --hour-height: 38px;
@@ -25,6 +26,7 @@
     --hour-height: 38px;
     --total-grid-height: calc(var(--hour-height) * 24);
     --border-color: #374151;
+    --surface-hover: #374151;
     --grid-border: #1f2937;
   }
 }
