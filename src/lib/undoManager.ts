@@ -83,6 +83,13 @@ async function apiDelete(eventId: string): Promise<boolean> {
 
 function clearRedo() { redoStack.length = 0 }
 
+function notifyDelete(eventId: string) {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('pac-event-deleted', { detail: eventId }))
+  }
+}
+
+
 // ── Public API ──
 
 /** Snapshot + delete an event. Returns the event title on success. */
@@ -90,6 +97,7 @@ export async function deleteEvent(eventId: string): Promise<string | false> {
   const snapshot = await fetchSnapshot(eventId)
   if (!snapshot) return false
   if (!(await apiDelete(eventId))) return false
+  notifyDelete(eventId)
   undoStack.push({ type: 'delete', snapshot })
   clearRedo()
   return snapshot.title
@@ -141,6 +149,7 @@ export async function undo(): Promise<string | false> {
 
     if (action.type === 'create') {
       if (!(await apiDelete(action.snapshot.id))) { undoStack.push(action); return false }
+      notifyDelete(action.snapshot.id)
       redoStack.push(action)
       return `Removed "${action.snapshot.title}"`
     }
@@ -160,6 +169,7 @@ export async function redo(): Promise<string | false> {
   try {
     if (action.type === 'delete') {
       if (!(await apiDelete(action.snapshot.id))) { redoStack.push(action); return false }
+      notifyDelete(action.snapshot.id)
       undoStack.push(action)
       return `Deleted "${action.snapshot.title}"`
     }

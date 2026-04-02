@@ -42,11 +42,27 @@ export default function InteractiveEvent({
   const [currentScale, setCurrentScale] = useState(1)
 
   useEffect(() => {
-    // Handshake: If we are the newly mounted replacement for a recently moved event, clear the pending flag
-    if ((window as any).__pendingEventId === event.id) {
-      (window as any).__pendingEventId = null
+    // Stale-Lock Handshake: Hide if our current props match the captured 'old' state.
+    if (typeof window !== 'undefined') {
+      const staleEvents = (window as any).__staleEvents || {}
+      const stale = staleEvents[event.id]
+      if (stale) {
+        const currentStart = new Date(event.fullStartTime).toISOString()
+        const currentEnd = new Date(event.fullEndTime).toISOString()
+        
+        // If our data matches the stale/old state, STAY HIDDEN. 
+        if (currentStart === stale.start && currentEnd === stale.end) {
+          setIsHidden(true)
+        } else {
+          // As soon as data changes, the lock is broken for this specific segment!
+          setIsHidden(false)
+          // We can optionally clear the global here, but we'll let the timer handle it.
+        }
+      } else {
+        setIsHidden(false)
+      }
     }
-    setIsHidden(false)
+    
     if (blockRef.current) blockRef.current.style.opacity = '1'
     
     // Zoom scale listener
@@ -62,12 +78,23 @@ export default function InteractiveEvent({
       if (e.detail.id === event.id) setIsHidden(true)
     }
     const handleEnd = () => {
-      // Stay hidden only if we are the 'stale' DB version waiting for a refresh
-      if ((window as any).__pendingEventId === event.id) {
-        setIsHidden(true) 
-      } else {
-        setIsHidden(false)
+      // Stay hidden if our data still matches the captured 'stale' state.
+      // This bridges the visual gap between the ghost disappearing and the router refresh completing.
+      const win = (window as any)
+      const staleEvents = win.__staleEvents || {}
+      const stale = staleEvents[event.id]
+      
+      if (stale) {
+        const currentStart = new Date(event.fullStartTime).toISOString()
+        const currentEnd = new Date(event.fullEndTime).toISOString()
+        
+        if (currentStart === stale.start && currentEnd === stale.end) {
+          setIsHidden(true)
+          return
+        }
       }
+      
+      setIsHidden(false)
     }
 
     window.addEventListener('pac-resize-preview', handlePreview)
@@ -121,6 +148,13 @@ export default function InteractiveEvent({
     ;(window as any).__activeDragTitle = event.title
     ;(window as any).__activeDragColor = event.project ? event.project.color : null
     
+    // Stale-Lock: Capture the CURRENT time before the move, to keep all segments hidden until the change arrives
+    if (!(window as any).__staleEvents) (window as any).__staleEvents = {}
+    ;(window as any).__staleEvents[event.id] = { 
+      start: new Date(event.fullStartTime).toISOString(), 
+      end: new Date(event.fullEndTime).toISOString() 
+    }
+
     // Hide ghost
     const blankImg = new Image()
     blankImg.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
@@ -180,9 +214,22 @@ export default function InteractiveEvent({
     document.removeEventListener('pointerup', handlePointerUp)
     window.dispatchEvent(new CustomEvent('pac-resize-end'))
     if (!currentTargetEndTime.current) return
-    ;(window as any).__pendingEventId = event.id
+    
+    const startIso = new Date(event.fullStartTime).toISOString()
+    const endIso = currentTargetEndTime.current.toISOString()
+    
+    // Capture the STALE state (what we have right now) to keep things hidden until the change arrives
+    const win = (window as any)
+    if (!win.__staleEvents) win.__staleEvents = {}
+    win.__staleEvents[event.id] = { start: startIso, end: new Date(event.fullEndTime).toISOString() }
+    
+    // Auto-cleanup stale lock after 10s to prevent permanent 'ghosting' if anything fails.
+    setTimeout(() => {
+      if (win.__staleEvents) delete win.__staleEvents[event.id]
+    }, 10000)
+
     try {
-      await updateEvent(event.id, { endTime: currentTargetEndTime.current.toISOString() })
+      await updateEvent(event.id, { endTime: endIso })
       startTransition(() => router.refresh())
     } catch (err) { console.error(err) }
   }

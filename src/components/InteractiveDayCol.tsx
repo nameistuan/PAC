@@ -1,7 +1,7 @@
 'use client'
 
 import React, { ReactNode, useState, useEffect, useRef, startTransition } from 'react'
-import { useRouter, usePathname } from 'next/navigation'
+import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { format, isToday, parseISO } from 'date-fns'
 import { updateEvent } from '@/lib/undoManager'
 
@@ -13,6 +13,7 @@ const getCurrentHourHeight = () => {
 export default function InteractiveDayCol({ dateStr, className, children, style }: { dateStr: string, className: string, children: ReactNode, style?: React.CSSProperties }) {
   const router = useRouter()
   const pathname = usePathname()
+  const searchParams = useSearchParams()
   const colRef = useRef<HTMLDivElement>(null)
   
   const [isPendingDrop, setIsPendingDrop] = useState(false)
@@ -48,17 +49,10 @@ export default function InteractiveDayCol({ dateStr, className, children, style 
   const is30MinOrLessResize = resizeHeightFraction !== null && resizeHeightFraction <= 0.5
   const is15MinResize = resizeHeightFraction !== null && resizeHeightFraction <= 0.25
 
-  // Wait rigorously for Next.js to fire a fresh layout payload containing the authentic Server Component element before collapsing our client-side snapshot model!
+  // UI Ghost Handshake Logic handled via __staleEvents global and CustomEvents.
   useEffect(() => {
-    // The exact millisecond fresh DB data hits the screen, obliterate any placeholder ghosts 
-    // to prevent visual stacking (which previously caused colors to temporarily darken)
-    // Globally safely obliterate the pending ID after the React tree has finished propagating the data
-    const timer = setTimeout(() => {
-      setResizeYFraction(null)
-      setResizeHeightFraction(null)
-      ;(window as any).__pendingEventId = null
-    }, 50) // Micro-delay to ensure browser has painted the new Server Component before ghost vanishes
-    return () => clearTimeout(timer)
+    setResizeYFraction(null)
+    setResizeHeightFraction(null)
   }, [children])
 
   // Listen for multi-day resize previews
@@ -106,8 +100,8 @@ export default function InteractiveDayCol({ dateStr, className, children, style 
         setResizeTitle(title)
         
         const isMultiday = format(resStart, 'yyyy-MM-dd') !== format(resEnd, 'yyyy-MM-dd')
-        const startStr = isMultiday ? format(resStart, 'EEE, h:mm a') : format(resStart, 'h:mm a')
-        const endTimeStr = isMultiday ? format(resEnd, 'EEE, h:mm a') : format(resEnd, 'h:mm a')
+        const startStr = isMultiday ? format(resStart, 'EEE, h:mm a').toUpperCase() : format(resStart, 'h:mm a')
+        const endTimeStr = isMultiday ? format(resEnd, 'EEE, h:mm a').toUpperCase() : format(resEnd, 'h:mm a')
         const timeStr = `${startStr} → ${endTimeStr}`
         setResizeTime(timeStr)
       } else {
@@ -202,16 +196,15 @@ export default function InteractiveDayCol({ dateStr, className, children, style 
     const snappedNewStartDate = new Date(rawNewStartDate.getFullYear(), rawNewStartDate.getMonth(), rawNewStartDate.getDate(), 0, minutesOnTargetDay, 0)
     const snappedNewEndDate = new Date(snappedNewStartDate.getTime() + durationMs)
 
-    setIsPendingDrop(true)
-    
-    // Crucial: Register pending ID BEFORE terminating ghost so original event stays 100% hidden while waiting for refreshed DB data
-    ;(window as any).__pendingEventId = eventId
+    // No more pendingEvent — we trust the __staleEvents lock captured in Event's handleDragStart
+    const startIso = snappedNewStartDate.toISOString()
+    const endIso = snappedNewEndDate.toISOString()
     window.dispatchEvent(new CustomEvent('pac-resize-end')) // Terminate ghost block
 
     try {
       const label = await updateEvent(eventId, {
-        startTime: snappedNewStartDate.toISOString(),
-        endTime: snappedNewEndDate.toISOString()
+        startTime: startIso,
+        endTime: endIso
       })
       if (label) {
         window.dispatchEvent(new CustomEvent('pac-toast', { detail: `Moved "${label}" — Press ⌘Z to undo` }))
@@ -341,6 +334,25 @@ export default function InteractiveDayCol({ dateStr, className, children, style 
     }
   }, [isCreating, createStartFraction, createCurrentFraction, dateStr, router])
 
+  // Persistent Draft Block for Creation Mode
+  const isCreateMode = searchParams.get('create') === 'true'
+  const createDateURL = searchParams.get('createDate')
+  const startTimeURL = searchParams.get('startTime')
+  const endTimeURL = searchParams.get('endTime')
+  
+  let draftTopFrac: number | null = null;
+  let draftHeightFrac: number | null = null;
+  
+  const pColorURL = searchParams.get('pColor')
+  const draftColor = pColorURL || 'var(--primary-color)'
+  
+  if (isCreateMode && createDateURL === dateStr && startTimeURL && endTimeURL) {
+    const sDate = new Date(startTimeURL)
+    const eDate = new Date(endTimeURL)
+    draftTopFrac = sDate.getHours() + sDate.getMinutes() / 60
+    draftHeightFrac = (eDate.getTime() - sDate.getTime()) / 3600000
+  }
+
   let ghostTop = 0
   let ghostHeight = 0
   if (isCreating && createStartFraction !== null && createCurrentFraction !== null) {
@@ -408,26 +420,35 @@ export default function InteractiveDayCol({ dateStr, className, children, style 
             pointerEvents: 'none',
             display: 'flex',
             alignItems: 'flex-start',
-            padding: '4px 6px',
+            padding: ghostHeight <= 0.25 ? '0px 4px' : '4px 6px',
             color: '#fff',
-            fontSize: '0.75rem',
-            fontWeight: 500,
-            boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+            fontSize: ghostHeight <= 0.25 ? '0.7rem' : '0.85rem',
+            boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+            overflow: 'hidden'
           }}
         >
-          {(() => {
-             const startF = ghostTop
-             const endF = ghostTop + ghostHeight
-             const sH = Math.floor(startF)
-             const sM = Math.round((startF - sH) * 60)
-             const tempDS = new Date()
-             tempDS.setHours(sH, sM, 0, 0)
-             const eH = Math.floor(endF)
-             const eM = Math.round((endF - eH) * 60)
-             const tempDE = new Date()
-             tempDE.setHours(eH, eM, 0, 0)
-             return `${format(tempDS, 'h:mm a')} → ${format(tempDE, 'h:mm a')}`
-          })()}
+          <div style={{ display: 'flex', flexDirection: ghostHeight <= 0.5 ? 'row' : 'column', justifyContent: ghostHeight <= 0.5 ? 'space-between' : 'flex-start', alignItems: 'flex-start', gap: ghostHeight <= 0.5 ? '6px' : '0px', height: '100%', width: '100%', padding: 0.5 }}>
+            <div style={{ fontWeight: 600, flexShrink: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              New event
+            </div>
+            {ghostHeight > 0.25 && (
+              <div style={{ opacity: 0.8, fontSize: '0.75rem', flexShrink: 0, whiteSpace: 'nowrap' }}>
+                {(() => {
+                   const startF = ghostTop
+                   const endF = ghostTop + ghostHeight
+                   const sH = Math.floor(startF)
+                   const sM = Math.round((startF - sH) * 60)
+                   const tempDS = new Date()
+                   tempDS.setHours(sH, sM, 0, 0)
+                   const eH = Math.floor(endF)
+                   const eM = Math.round((endF - eH) * 60)
+                   const tempDE = new Date()
+                   tempDE.setHours(eH, eM, 0, 0)
+                   return `${format(tempDS, 'h:mm a')} → ${format(tempDE, 'h:mm a')}`
+                })()}
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -440,26 +461,72 @@ export default function InteractiveDayCol({ dateStr, className, children, style 
             height: `max(16px, calc(var(--hour-height) * ${resizeHeightFraction}))`,
             left: '2px',
             right: '6px',
-            backgroundColor: resizeColor ? `${resizeColor}33` : 'var(--surface-hover)', // Match real event 20% opacity
+            backgroundColor: resizeColor ? `${resizeColor}33` : 'var(--surface-hover)', 
             border: `1px solid ${resizeColor || 'var(--border-color)'}`,
-            borderLeft: `4px solid ${resizeColor || 'var(--border-color)'}`, // Solid for 'preview' feel
+            borderLeft: `4px solid ${resizeColor || 'var(--border-color)'}`, 
             borderRadius: '4px',
             zIndex: 45, 
             pointerEvents: 'none',
             boxShadow: '0 8px 16px rgba(0,0,0,0.15)',
-            padding: '4px 6px',
+            padding: resizeHeightFraction <= 0.25 ? '0px 4px' : '4px 6px',
             color: resizeColor || 'var(--text-primary)',
-            fontSize: '0.75rem',
+            fontSize: resizeHeightFraction <= 0.25 ? '0.7rem' : '0.85rem',
             overflow: 'hidden'
           }}
         >
-          <div style={{ display: 'flex', flexDirection: is30MinOrLessResize ? 'row' : 'column', justifyContent: is30MinOrLessResize ? 'space-between' : 'flex-start', alignItems: 'flex-start', gap: is30MinOrLessResize ? '6px' : '0px', height: '100%', width: '100%' }}>
+          <div style={{ display: 'flex', flexDirection: is30MinOrLessResize ? 'row' : 'column', justifyContent: is30MinOrLessResize ? 'space-between' : 'flex-start', alignItems: 'flex-start', gap: is30MinOrLessResize ? '6px' : '0px', height: '100%', width: '100%', padding: 0.5 }}>
             <div style={{ fontWeight: 600, flexShrink: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {resizeTitle || 'Moving Event'}
             </div>
             {!is15MinResize && (
-              <div style={{ opacity: 0.9, fontSize: '0.7rem', flexShrink: 0, whiteSpace: 'nowrap' }}>
+              <div style={{ opacity: 0.8, fontSize: '0.75rem', flexShrink: 0, whiteSpace: 'nowrap' }}>
                 {resizeTime || 'Pending...'}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+      {/* Persistent Draft Block during Creation Mode */}
+      {draftTopFrac !== null && draftHeightFrac !== null && !isCreating && (
+        <div 
+          style={{
+            position: 'absolute',
+            top: `calc(var(--hour-height) * ${draftTopFrac})`,
+            height: `calc(var(--hour-height) * ${draftHeightFrac})`,
+            left: '2px',
+            right: '6px',
+            backgroundColor: draftColor === 'var(--primary-color)' ? 'var(--primary-color)' : `${draftColor}33`,
+            borderLeft: `4px solid ${draftColor}`,
+            borderTop: 'none',
+            borderRight: 'none',
+            borderBottom: 'none',
+            boxShadow: draftColor === 'var(--primary-color)' ? 'none' : 'inset 0 0 0 1px rgba(0,0,0,0.1)',
+            borderRadius: '4px',
+            zIndex: 44, 
+            pointerEvents: 'none',
+            display: 'flex',
+            alignItems: 'flex-start',
+            padding: draftHeightFrac <= 0.25 ? '0px 4px' : '4px 6px',
+            color: draftColor === 'var(--primary-color)' ? '#fff' : draftColor,
+            fontSize: draftHeightFrac <= 0.25 ? '0.7rem' : '0.85rem',
+            overflow: 'hidden'
+          }}
+        >
+           <div style={{ display: 'flex', flexDirection: draftHeightFrac <= 0.5 ? 'row' : 'column', justifyContent: draftHeightFrac <= 0.5 ? 'space-between' : 'flex-start', alignItems: 'flex-start', gap: draftHeightFrac <= 0.5 ? '6px' : '0px', height: '100%', width: '100%', padding: 0.5 }}>
+            <div style={{ fontWeight: 600, flexShrink: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              New event
+            </div>
+            {draftHeightFrac > 0.25 && (
+              <div style={{ opacity: 0.9, fontSize: '0.75rem', flexShrink: 0, whiteSpace: 'nowrap' }}>
+                {(() => {
+                   const sH = Math.floor(draftTopFrac!)
+                   const sM = Math.round((draftTopFrac! - sH) * 60)
+                   const dS = new Date(); dS.setHours(sH, sM, 0, 0)
+                   const eH = Math.floor(draftTopFrac! + draftHeightFrac!)
+                   const eM = Math.round((draftTopFrac! + draftHeightFrac! - eH) * 60)
+                   const dE = new Date(); dE.setHours(eH, eM, 0, 0)
+                   return `${format(dS, 'h:mm a')} → ${format(dE, 'h:mm a')}`
+                })()}
               </div>
             )}
           </div>

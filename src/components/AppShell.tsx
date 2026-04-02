@@ -1,9 +1,9 @@
 'use client'
 
-import { useState, useRef, useEffect, startTransition, useMemo } from 'react'
+import { useState, useRef, useEffect, useLayoutEffect, startTransition, useMemo } from 'react'
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
 import { format, addMonths, subMonths, addWeeks, subWeeks, addDays, subDays, startOfWeek } from 'date-fns'
-import { getStableNow, parseAnchorDate } from '@/lib/dateUtils'
+import { getTodayISO, parseISOString } from '@/lib/dateUtils'
 import styles from './AppShell.module.css'
 import EventModal from './EventModal'
 import ProjectSidebar from './ProjectSidebar'
@@ -27,7 +27,7 @@ export default function AppShell({
   const [isMounted, setIsMounted] = useState(false)
   const [isEventModalOpen, setIsEventModalOpen] = useState(false)
   const [isSearchOpen, setIsSearchOpen] = useState(false)
-  const [gridScale] = useState(1)
+  const [gridScale, setGridScale] = useState(1)
   const [toast, setToast] = useState<string | null>(null)
   const searchParams = useSearchParams()
   const router = useRouter()
@@ -35,8 +35,6 @@ export default function AppShell({
   
   const editEventId = searchParams.get('editEvent')
   const createParam = searchParams.get('create')
-  const dateParam = searchParams.get('date')
-  const monthParam = searchParams.get('month') 
 
   const isModalVisuallyOpen = isEventModalOpen || !!editEventId || createParam === 'true'
 
@@ -60,112 +58,103 @@ export default function AppShell({
     }
   }, [sidebarWidth, isSidebarOpen, isMounted])
 
-  // Hydration-Stable 'Now' Reference: Stabilize timezone noise by forcing a noon-UTC anchor
-  const [nowStable] = useState(() => getStableNow())
-
-  const hasDateParam = searchParams.get('date')
-  const currentDate = useMemo(() => {
-    return parseAnchorDate(hasDateParam)
-  }, [hasDateParam, nowStable])
-
-  const [internalDate, setInternalDate] = useState<Date>(currentDate)
-  useEffect(() => { setInternalDate(currentDate) }, [currentDate.toISOString()])
+  // URL as the sole source of truth for the date
+  const dateParam = searchParams.get('date')
+  const currentDateISO = useMemo(() => dateParam || getTodayISO(), [dateParam])
+  const internalDate = useMemo(() => parseISOString(currentDateISO), [currentDateISO])
 
   // Launch Redirect: If the user visits without a date, the client (who knows local 'Now') sets it.
   useEffect(() => {
-    if (isMounted && !hasDateParam) {
-      const todayStr = format(getStableNow(), 'yyyy-MM-dd')
-      router.replace(`${pathname}?date=${todayStr}`, { scroll: false })
+    if (isMounted && !dateParam) {
+      router.replace(`${pathname}?date=${getTodayISO()}`, { scroll: false })
     }
-  }, [isMounted, hasDateParam, pathname, router])
+  }, [isMounted, dateParam, pathname, router])
+
+  // Programmatic Scroll Guard: Prevents onScroll from updating the URL while we're re-centering.
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const isProgrammaticScroll = useRef(false)
 
   const handlePrev = () => {
-    let prev = internalDate
+    if (isProgrammaticScroll.current) return
+    let prev: Date
     if (pathname === '/') prev = subMonths(internalDate, 1)
     else if (pathname === '/week') prev = subWeeks(internalDate, 1)
     else if (pathname === '/day') prev = subDays(internalDate, 4)
     else prev = subDays(internalDate, 1)
-    setInternalDate(prev)
     router.push(`${pathname}?date=${format(prev, 'yyyy-MM-dd')}`, { scroll: false })
   }
 
   const handleNext = () => {
-    let next = internalDate
+    if (isProgrammaticScroll.current) return
+    let next: Date
     if (pathname === '/') next = addMonths(internalDate, 1)
     else if (pathname === '/week') next = addWeeks(internalDate, 1)
     else if (pathname === '/day') next = addDays(internalDate, 4)
     else next = addDays(internalDate, 1)
-    setInternalDate(next)
     router.push(`${pathname}?date=${format(next, 'yyyy-MM-dd')}`, { scroll: false })
   }
 
   const handleToday = () => {
-    const target = new Date()
-    setInternalDate(target)
-    router.push(`${pathname}?date=${format(target, 'yyyy-MM-dd')}`, { scroll: false })
+    router.push(`${pathname}?date=${getTodayISO()}`, { scroll: false })
   }
 
   const handlePrevDay = () => {
     const prev = subDays(internalDate, 1)
-    setInternalDate(prev)
     router.push(`${pathname}?date=${format(prev, 'yyyy-MM-dd')}`, { scroll: false })
   }
   const handleNextDay = () => {
     const next = addDays(internalDate, 1)
-    setInternalDate(next)
     router.push(`${pathname}?date=${format(next, 'yyyy-MM-dd')}`, { scroll: false })
   }
 
-  // Real Webpage Scrolling Engine: High-Performance native overflow tracking
-  const scrollRef = useRef<HTMLDivElement>(null)
-  const isSettingScrollRef = useRef(false)
-  const lastScrollPos = useRef(0)
+  // Layout-Safe Centering: Forces scroll snap before the browser paints
+  useLayoutEffect(() => {
+    const container = scrollRef.current
+    if (!container || !isMounted) return
+
+    const center = () => {
+      const width = container.offsetWidth
+      if (width > 100) {
+        // Lock the scroll engine while we snap
+        isProgrammaticScroll.current = true
+        container.scrollLeft = width
+        
+        // Use a tiny timeout to ensure the browser has finished the jump before we accept new scroll input
+        setTimeout(() => {
+          isProgrammaticScroll.current = false
+        }, 100)
+      } else {
+        requestAnimationFrame(center)
+      }
+    }
+    center()
+  }, [pathname, currentDateISO, isMounted])
 
   useEffect(() => {
     const container = scrollRef.current
     if (!container) return
-    
-    const centerView = () => {
-      const width = container.offsetWidth
-      if (width > 0) {
-        if (Math.abs(container.scrollLeft - width) > 5) {
-          isSettingScrollRef.current = true
-          container.scrollLeft = width
-          lastScrollPos.current = width
-          // Release the lock after a short frame to let the browser paint the scroll
-          requestAnimationFrame(() => {
-            isSettingScrollRef.current = false
-          })
-        }
-      } else {
-        requestAnimationFrame(centerView)
-      }
-    }
-    centerView()
-    
+
     const onScroll = () => {
-      if (isSettingScrollRef.current) return // Filter out programmatic re-centering
+      // If we are re-centering programmatically, IGNORE this event to break the loop!
+      if (isProgrammaticScroll.current) return
       
       const pos = container.scrollLeft
       const width = container.offsetWidth
-      if (width <= 0) return 
+      if (width <= 100) return 
       
       const posPct = pos / width
-      
-      // Robust Thresholding: Only trigger if we've scrolled deep into a side buffer
-      if (posPct < 0.15) { // User is near the absolute left edge
-        isSettingScrollRef.current = true
+      if (posPct < 0.2) {
+        isProgrammaticScroll.current = true
         handlePrev()
-      } 
-      else if (posPct > 1.85) { // User is near the absolute right edge
-        isSettingScrollRef.current = true
+      } else if (posPct > 1.8) {
+        isProgrammaticScroll.current = true
         handleNext()
       }
     }
 
     container.addEventListener('scroll', onScroll, { passive: true })
     return () => container.removeEventListener('scroll', onScroll)
-  }, [pathname, internalDate.getTime()])
+  }, [pathname, currentDateISO])
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -191,6 +180,30 @@ export default function AppShell({
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [internalDate, pathname, isModalVisuallyOpen])
+
+  useEffect(() => {
+    const handleWheel = (e: WheelEvent) => {
+      // Zoom with Cmd (Mac) or Ctrl
+      if (e.metaKey || e.ctrlKey) {
+        e.preventDefault()
+        const delta = e.deltaY > 0 ? -0.1 : 0.1
+        setGridScale(prev => Math.max(0.5, Math.min(3, prev + delta)))
+      }
+    }
+    window.addEventListener('wheel', handleWheel, { passive: false })
+    return () => window.removeEventListener('wheel', handleWheel)
+  }, [])
+
+  useEffect(() => {
+    const handleExternalDelete = (e: Event) => {
+      const deletedId = (e as CustomEvent).detail
+      if (deletedId === editEventId) {
+        handleCloseModal()
+      }
+    }
+    window.addEventListener('pac-event-deleted', handleExternalDelete)
+    return () => window.removeEventListener('pac-event-deleted', handleExternalDelete)
+  }, [editEventId])
 
   useEffect(() => {
     document.documentElement.style.setProperty('--hour-height', `${38 * gridScale}px`)
@@ -237,7 +250,6 @@ export default function AppShell({
             currentDate={internalDate}
             pathname={pathname}
             onNavigate={(date) => {
-              setInternalDate(date)
               router.push(`${pathname}?date=${format(date, 'yyyy-MM-dd')}`, { scroll: false })
             }}
           />
@@ -294,6 +306,8 @@ export default function AppShell({
           eventId={editEventId || undefined} 
           onClose={handleCloseModal}
           initialDate={searchParams.get('createDate') || undefined}
+          initialStartTime={searchParams.get('startTime') || undefined}
+          initialEndTime={searchParams.get('endTime') || undefined}
         />
       )}
       {isSearchOpen && <SearchPopover onClose={() => setIsSearchOpen(false)} />}

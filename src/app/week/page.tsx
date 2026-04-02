@@ -6,9 +6,10 @@ import {
   format,
   startOfWeek,
   subDays,
-  parseISO
+  parseISO,
+  startOfDay
 } from 'date-fns'
-import { parseAnchorDate } from '@/lib/dateUtils'
+import { parseISOString } from '@/lib/dateUtils'
 import Link from 'next/link'
 import InteractiveDayCol from '@/components/InteractiveDayCol'
 import InteractiveEvent from '@/components/InteractiveEvent'
@@ -25,13 +26,13 @@ export default async function WeekView({
 }: {
   searchParams: Promise<{ month?: string, date?: string }>
 }) {
-  const resolvedParams = await searchParams
-  const currentDate = parseAnchorDate(resolvedParams.date)
+  const { date, month } = await searchParams
+  const currentDate = parseISOString(date)
   
   const getEventUrl = (eventId: string) => {
     const params = new URLSearchParams()
-    if (resolvedParams.date) params.set('date', resolvedParams.date)
-    if (resolvedParams.month) params.set('month', resolvedParams.month)
+    if (date) params.set('date', date)
+    if (month) params.set('month', month)
     params.set('editEvent', eventId)
     return `/week?${params.toString()}`
   }
@@ -88,7 +89,7 @@ export default async function WeekView({
           days={dayStrs}
           eventsByDate={allDayByDate}
           baseUrl="/week"
-          dateParam={resolvedParams.date}
+          dateParam={date}
         />
 
         {/* Time Column */}

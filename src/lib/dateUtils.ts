@@ -1,21 +1,16 @@
-import { parseISO, startOfDay, addHours } from 'date-fns'
+import { format, parseISO, startOfDay } from 'date-fns'
 
 /**
- * Stabilizes 'Today/Now' for SSR/Hydration parity.
- * Forces a 12:00:00 Noon UTC reference point to prevent timezone-drift jumps.
+ * Returns the current date as a local ISO string (YYYY-MM-DD).
  */
-export function getStableNow(): Date {
-  const d = new Date()
-  // Create a UTC-absolute noon for the current calendar day
-  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 12, 0, 0))
+export function getTodayISO(): string {
+  return format(new Date(), 'yyyy-MM-dd')
 }
 
 /**
- * Standardized ISO parsing for calendar anchors.
+ * Parses a YYYY-MM-DD string into a standard Date object at 12:00:00 (Local).
  */
-export function parseAnchorDate(dateStr: string | null | undefined): Date {
-  if (!dateStr) return getStableNow()
-  if (dateStr.includes('T')) return parseISO(dateStr)
-  // Ensure we parse simple 'yyyy-MM-dd' as noon UTC to avoid falling into the previous day
-  return parseISO(`${dateStr}T12:00:00Z`)
+export function parseISOString(dateStr: string | null | undefined): Date {
+  if (!dateStr) return startOfDay(new Date())
+  return parseISO(dateStr.includes('T') ? dateStr : `${dateStr}T12:00:00`)
 }
