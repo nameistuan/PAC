@@ -8,40 +8,124 @@ datasource db {
   provider = "sqlite"
 }
 
+// ----------------------------------------------------------------------------
+// ORGANIZATIONAL CONTEXTS (Projects, Classes, Clients)
+// ----------------------------------------------------------------------------
 model Project {
-  id        String   @id @default(uuid())
-  name      String
-  color     String   @default("#312E81")
-  tasks     Task[]
-  events    Event[]
+  id          String  @id @default(uuid())
+  name        String
+  description String?
+  color       String  @default("#312E81")
+
+  // Future proofing: Semesters or projects end. Don't force deletion.
+  status String @default("ACTIVE") // e.g., "ACTIVE", "ARCHIVED"
+
+  // Optional bounds for the project
+  startDate DateTime?
+  endDate   DateTime?
+
+  // Used for custom drag-and-drop sorting in the sidebar
+  sortOrder Float @default(0)
+
+  tasks  Task[]
+  events Event[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
+// ----------------------------------------------------------------------------
+// TASK & PROGRESS MANAGEMENT
+// ----------------------------------------------------------------------------
 model Task {
-  id        String   @id @default(uuid())
-  title     String
-  status    String   @default("TODO")
-  priority  String   @default("MEDIUM")
+  id          String  @id @default(uuid())
+  title       String
+  description String? // Rich text or markdown support
+
+  // Core Kanban fields
+  status   String @default("TODO") // "BACKLOG", "TODO", "IN_PROGRESS", "DONE"
+  priority String @default("MEDIUM") // "LOW", "MEDIUM", "HIGH", "URGENT"
+  order    Float  @default(0) // Precise drag-and-drop ordering within a column
+
+  // Time and planning (The Juggle magic mapping)
+  dueDate DateTime? // Hard deadline
+
+  // plannedDate links a task to the Daily View WITHOUT assigning a hard hour slot
+  plannedDate String? // Format: "YYYY-MM-DD"
+
+  estimatedMinutes Int? // Future proofing for time-blocking suggestions
+
   projectId String?
   project   Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  events    Event[]
+
+  events   Event[] // Time-boxed slots on the calendar for this task
+  subtasks Subtask[]
+  tags     Tag[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
+model Subtask {
+  id          String  @id @default(uuid())
+  title       String
+  isCompleted Boolean @default(false)
+  order       Float   @default(0) // Ordering inside the task
+
+  taskId String
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Tag {
+  id    String @id @default(uuid())
+  name  String @unique
+  color String @default("#888888")
+
+  tasks Task[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ----------------------------------------------------------------------------
+// SCHEDULING (The Calendar Grid)
+// ----------------------------------------------------------------------------
 model Event {
-  id          String   @id @default(uuid())
+  id          String  @id @default(uuid())
   title       String
   description String?
   location    String?
-  startTime   DateTime
-  endTime     DateTime
-  projectId   String?
-  project     Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  taskId      String?
-  task        Task?    @relation(fields: [taskId], references: [id])
-  isFluid     Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+
+  startTime DateTime
+  endTime   DateTime
+
+  // Future proofing
+  isAllDay       Boolean @default(false)
+  recurrenceRule String? // String to support standard iCal RRULE logic
+  isFluid        Boolean @default(false)
+
+  projectId String?
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  // A task can be sliced into multiple events.
+  taskId String?
+  task   Task?   @relation(fields: [taskId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ----------------------------------------------------------------------------
+// THE DAILY JOURNAL
+// ----------------------------------------------------------------------------
+model JournalEntry {
+  id      String @id @default(uuid())
+  date    String @unique // Format: "YYYY-MM-DD" to easily link to a calendar day
+  content String // The unstructured thoughts for that day
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
