@@ -1,14 +1,16 @@
 :root {
-  --primary-color: #312E81;
-  --primary-hover: #1e1b4b; /* darker shade for hover */
-  --secondary-color: #76758B;
-  --tertiary-color: #8F6B91;
+  --primary-color: #1E293B;
+  --primary-hover: #0F172A; /* darker shade for hover */
+  --secondary-color: #64748B;
+  --tertiary-color: #94A3B8;
   
   --background-color: #F8FAFC;
   --surface-color: #ffffff;
-  --text-primary: #0f172a;
+  --text-primary: #111111;
   --text-secondary: #76758B; /* secondary works great for labels/subtext! */
   --border-color: #e2e8f0;
+  --nav-height: 50px;
+  --subheader-height: 60px;
   
   --surface-hover: #f1f5f9;
   --grid-border: #f1f5f9;

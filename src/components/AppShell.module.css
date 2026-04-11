@@ -1,7 +1,16 @@
 .appContainer {
   display: flex;
+  flex-direction: column;
   height: 100vh;
   overflow: hidden;
+}
+
+.shellBody {
+  display: flex;
+  flex-direction: row;
+  flex-grow: 1;
+  overflow: hidden;
+  position: relative;
 }
 
 /* Sidebar Styles */
@@ -19,7 +28,8 @@
 }
 
 .sidebarClosed {
-  border-right: 1px solid transparent; /* Hide visual boundaries when mathematically collapsed */
+  width: 0 !important;
+  border-right: 0 !important;
 }
 
 /* Interactive Resizer Handle */
@@ -39,24 +49,8 @@
   background-color: var(--primary-color);
 }
 
-.resizerHidden {
-  opacity: 0;
-}
 
-.sidebarHeader {
-  height: 50px;
-  display: flex;
-  align-items: center;
-  padding: 0 1.5rem;
-  border-bottom: 1px solid var(--border-color);
-}
 
-.sidebarHeader h2 {
-  font-size: 1.5rem;
-  font-weight: 800;
-  letter-spacing: -0.05em;
-  color: var(--primary-color);
-}
 
 .sidebarNav {
   padding: 1.5rem;
@@ -123,26 +117,36 @@
 }
 
 .topbar {
-  height: 50px;
+  height: var(--nav-height);
   border-bottom: 1px solid var(--border-color);
   background-color: var(--surface-color);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 2rem;
+  padding: 0 1.5rem;
   flex-shrink: 0;
+  z-index: 100;
 }
+
+.logo {
+  font-size: 1.7rem;
+  font-weight: 800;
+  letter-spacing: -0.05em;
+  color: var(--primary-color);
+  margin-right: 1.5rem;
+}
+
 
 .topbarLeft {
   display: flex;
   align-items: center;
-  gap: 2rem;
+  gap: 1rem;
 }
 
 .topbarRight {
   display: flex;
   align-items: center;
-  gap: 1.5rem;
+  gap: 1rem;
 }
 
 .hamburgerBtn {
@@ -166,7 +170,7 @@
 
 .displayDate {
   font-size: 1.6rem;
-  font-weight: 600;
+  font-weight: 400;
   color: var(--text-primary);
   letter-spacing: -0.03em;
 }
@@ -284,102 +288,7 @@
 .pageContent {
   flex-grow: 1;
   position: relative;
-  overflow: hidden; /* Hide the scrollbars but keep the container scrollable */
-}
-
-.scrollContainer {
-  display: flex;
-  width: 100%;
-  height: 100%;
-  overflow-x: auto;
-  scroll-snap-type: x mandatory;
-  scrollbar-width: none; /* Firefox */
-  -ms-overflow-style: none; /* IE 10+ */
-  scroll-behavior: smooth;
-}
-
-.scrollContainer::-webkit-scrollbar {
-  display: none; /* Chrome/Safari */
-}
-
-.scrollPage {
-  flex: 0 0 100%;
-  width: 100%;
-  height: 100%;
-  scroll-snap-align: center;
-  position: relative;
-}
-
-.scrollSpacer {
-  flex: 0 0 100%; /* Wider "buffer" to allow generous swiping */
-  width: 100%;
-  height: 100%;
-  scroll-snap-align: center;
-  background-image: 
-    linear-gradient(to right, var(--grid-border) 1px, transparent 1px);
-  background-size: calc(100% / 7) 100%;
-  opacity: 0.1;
-}
-
-.slideForward {
-  animation: slideLeftFade 0.45s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.slideBackward {
-  animation: slideRightFade 0.45s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-@keyframes slideLeftFade {
-  from { opacity: 0; transform: translateX(8px); }
-  to { opacity: 1; transform: translateX(0); }
-}
-
-@keyframes slideRightFade {
-  from { opacity: 0; transform: translateX(-8px); }
-  to { opacity: 1; transform: translateX(0); }
-}
-
-/* Phantom Vertical Bars for 1-day jumps */
-.floatingArrow {
-  position: absolute;
-  top: 50px;
-  bottom: 0;
-  width: 72px; /* Nicely widened footprint */
-  background-color: transparent; 
-  border: none;
-  color: var(--text-secondary);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  z-index: 50;
-  opacity: 0; 
-}
-
-/* Hovering DIRECTLY on the phantom bar reveals a frosted-glass transparent white */
-.floatingArrow:hover {
-  opacity: 1;
-  background-color: rgba(255, 255, 255, 0.4); 
-  backdrop-filter: blur(2px); /* High-end Apple-style glassmorphism */
-  -webkit-backdrop-filter: blur(2px);
-  color: var(--text-primary);
-}
-
-.floatingArrowLeft {
-  left: 0;
-  border-right: 1px solid transparent;
-}
-.floatingArrowLeft:hover {
-  border-right: 1px solid var(--border-color);
-}
-
-.floatingArrowRight {
-  right: 0;
-  border-left: 1px solid transparent;
-}
-.floatingArrowRight:hover {
-  border-left: 1px solid var(--border-color);
+  overflow: hidden;
 }
 
 /* Toast notification */
@@ -420,7 +329,8 @@
 }
 
 .kanbanClosed {
-  border-right: 1px solid transparent;
+  width: 0 !important;
+  border-right: 0 !important;
 }
 
 .iconBtnActive {

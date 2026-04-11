@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useRef, useEffect, useLayoutEffect, startTransition, useMemo } from 'react'
+import { useState, useRef, useEffect, startTransition, useMemo } from 'react'
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
-import { format, addMonths, subMonths, addWeeks, subWeeks, addDays, subDays, startOfWeek } from 'date-fns'
+import { format, addMonths, subMonths, addWeeks, subWeeks, addDays, subDays } from 'date-fns'
 import { getTodayISO, parseISOString } from '@/lib/dateUtils'
 import styles from './AppShell.module.css'
 import EventModal from './EventModal'
@@ -77,11 +77,7 @@ export default function AppShell({
     }
   }, [isMounted, dateParam, pathname, router])
 
-  const scrollRef = useRef<HTMLDivElement>(null)
-  const isProgrammaticScroll = useRef(false)
-
   const handlePrev = () => {
-    if (isProgrammaticScroll.current) return
     let prev: Date
     if (pathname === '/') prev = subMonths(internalDate, 1)
     else if (pathname === '/week') prev = subWeeks(internalDate, 1)
@@ -91,7 +87,6 @@ export default function AppShell({
   }
 
   const handleNext = () => {
-    if (isProgrammaticScroll.current) return
     let next: Date
     if (pathname === '/') next = addMonths(internalDate, 1)
     else if (pathname === '/week') next = addWeeks(internalDate, 1)
@@ -103,60 +98,6 @@ export default function AppShell({
   const handleToday = () => {
     router.push(`${pathname}?date=${getTodayISO()}`, { scroll: false })
   }
-
-  const handlePrevDay = () => {
-    const prev = subDays(internalDate, 1)
-    router.push(`${pathname}?date=${format(prev, 'yyyy-MM-dd')}`, { scroll: false })
-  }
-  const handleNextDay = () => {
-    const next = addDays(internalDate, 1)
-    router.push(`${pathname}?date=${format(next, 'yyyy-MM-dd')}`, { scroll: false })
-  }
-
-  useLayoutEffect(() => {
-    const container = scrollRef.current
-    if (!container || !isMounted) return
-
-    const center = () => {
-      const width = container.offsetWidth
-      if (width > 100) {
-        isProgrammaticScroll.current = true
-        container.scrollLeft = width
-        
-        setTimeout(() => {
-          isProgrammaticScroll.current = false
-        }, 100)
-      } else {
-        requestAnimationFrame(center)
-      }
-    }
-    center()
-  }, [pathname, currentDateISO, isMounted])
-
-  useEffect(() => {
-    const container = scrollRef.current
-    if (!container) return
-
-    const onScroll = () => {
-      if (isProgrammaticScroll.current) return
-      
-      const pos = container.scrollLeft
-      const width = container.offsetWidth
-      if (width <= 100) return 
-      
-      const posPct = pos / width
-      if (posPct < 0.2) {
-        isProgrammaticScroll.current = true
-        handlePrev()
-      } else if (posPct > 1.8) {
-        isProgrammaticScroll.current = true
-        handleNext()
-      }
-    }
-
-    container.addEventListener('scroll', onScroll, { passive: true })
-    return () => container.removeEventListener('scroll', onScroll)
-  }, [pathname, currentDateISO])
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -260,78 +201,74 @@ export default function AppShell({
 
   return (
     <div className={styles.appContainer}>
-      <aside className={`${styles.sidebar} ${!isSidebarOpen ? styles.sidebarClosed : ''}`} style={{ width: isSidebarOpen ? `${sidebarWidth}px` : '0px' }}>
-        <div className={styles.sidebarHeader}><h2 className={styles.logo}>PAC</h2></div>
-        <nav className={styles.sidebarNav}>
-          <MiniCalendar
-            currentDate={internalDate}
-            pathname={pathname}
-            onNavigate={(date) => {
-              router.push(`${pathname}?date=${format(date, 'yyyy-MM-dd')}`, { scroll: false })
-            }}
-          />
-          <ProjectSidebar initialProjects={initialProjects} />
-        </nav>
-      </aside>
-      <div className={`${styles.resizer} ${!isSidebarOpen ? styles.resizerHidden : ''}`} onMouseDown={startResizing} />
-      
-      {/* Kanban Pane */}
-      <aside className={`${styles.kanbanSidebar} ${!isKanbanOpen ? styles.kanbanClosed : ''}`} style={{ width: isKanbanOpen ? `${kanbanWidth}px` : '0px' }}>
-         <KanbanSidebar />
-      </aside>
-      <div className={`${styles.resizer} ${!isKanbanOpen ? styles.resizerHidden : ''}`} onMouseDown={startKanbanResizing} />
+      <header className={styles.topbar}>
+        <div className={styles.topbarLeft}>
+          <h2 className={styles.logo}>PAC</h2>
+          <button className={styles.hamburgerBtn} onClick={() => setIsSidebarOpen(!isSidebarOpen)}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 12H21M3 6H21M3 18H21"/></svg>
+          </button>
 
-      <div className={styles.mainContent}>
-        <header className={styles.topbar}>
-          <div className={styles.topbarLeft}>
-            <button className={styles.hamburgerBtn} onClick={() => setIsSidebarOpen(!isSidebarOpen)}><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 12H21M3 6H21M3 18H21"/></svg></button>
-            <div className={styles.monthNavButtons}>
-              <button className={styles.iconBtn} onClick={handlePrev}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 19l-7-7 7-7" /></svg></button>
-              <button className={styles.todayBtn} onClick={handleToday}>Today</button>
-              <button className={styles.iconBtn} onClick={handleNext}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 5l7 7-7 7" /></svg></button>
-            </div>
-            <h2 className={styles.displayDate}>{format(internalDate, pathname === '/' ? 'MMMM yyyy' : 'MMM d, yyyy')}</h2>
-          </div>
-          <div className={styles.topbarRight}>
-            <div className={styles.viewToggle}>
-              <button className={`${styles.toggleBtn} ${pathname === '/' ? styles.active : ''}`} onClick={() => router.push(`/?date=${format(internalDate, 'yyyy-MM-dd')}`)}>Month</button>
-              <button className={`${styles.toggleBtn} ${pathname === '/week' ? styles.active : ''}`} onClick={() => router.push(`/week?date=${format(internalDate, 'yyyy-MM-dd')}`)}>Week</button>
-              <button className={`${styles.toggleBtn} ${pathname === '/day' ? styles.active : ''}`} onClick={() => router.push(`/day?date=${format(internalDate, 'yyyy-MM-dd')}`)}>4 Day</button>
-            </div>
-            
-            <button 
-              className={`${styles.iconBtn} ${isKanbanOpen ? styles.iconBtnActive : ''}`} 
-              onClick={() => setIsKanbanOpen(!isKanbanOpen)}
-              title="Toggle Kanban Tasks"
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 3H4v18h5V3zM20 3h-5v18h5V3zM14.5 3h-5v18h5V3z"/></svg>
+          <button 
+            className={`${styles.iconBtn} ${isKanbanOpen ? styles.iconBtnActive : ''}`} 
+            onClick={() => setIsKanbanOpen(!isKanbanOpen)}
+            title="Toggle Kanban Tasks"
+          >
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 3H4v18h5V3zM20 3h-5v18h5V3zM14.5 3h-5v18h5V3z"/></svg>
+          </button>
+
+          
+          <div className={styles.monthNavButtons}>
+            <button className={styles.iconBtn} onClick={handlePrev}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 19l-7-7 7-7" /></svg>
             </button>
-
-            <button className={styles.searchBtn} onClick={() => setIsSearchOpen(true)} title="Search events (⌘K)">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+            <button className={styles.todayBtn} onClick={handleToday}>Today</button>
+            <button className={styles.iconBtn} onClick={handleNext}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 5l7 7-7 7" /></svg>
             </button>
-            <button className={styles.addButton} onClick={() => setIsEventModalOpen(true)}>+ New Event</button>
           </div>
-        </header>
-
-        <div className={styles.pageContent}>
-          <div ref={scrollRef} className={styles.scrollContainer}>
-            <div className={styles.scrollSpacer} /> 
-            <div className={styles.scrollPage}> {children} </div>
-            <div className={styles.scrollSpacer} />
-          </div>
+          <h2 className={styles.displayDate}>{format(internalDate, pathname === '/' ? 'MMMM yyyy' : 'MMM d, yyyy')}</h2>
         </div>
+        
+        <div className={styles.topbarRight}>
+          <div className={styles.viewToggle}>
+            <button className={`${styles.toggleBtn} ${pathname === '/' ? styles.active : ''}`} onClick={() => router.push(`/?date=${format(internalDate, 'yyyy-MM-dd')}`)}>Month</button>
+            <button className={`${styles.toggleBtn} ${pathname === '/week' ? styles.active : ''}`} onClick={() => router.push(`/week?date=${format(internalDate, 'yyyy-MM-dd')}`)}>Week</button>
+            <button className={`${styles.toggleBtn} ${pathname === '/day' ? styles.active : ''}`} onClick={() => router.push(`/day?date=${format(internalDate, 'yyyy-MM-dd')}`)}>4 Day</button>
+          </div>
+          
+          <button className={styles.searchBtn} onClick={() => setIsSearchOpen(true)} title="Search events (⌘K)">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          </button>
+          <button className={styles.addButton} onClick={() => setIsEventModalOpen(true)}>+ New Event</button>
+        </div>
+      </header>
 
-        {pathname !== '/' && (
-          <>
-            <button className={`${styles.floatingArrow} ${styles.floatingArrowLeft}`} onClick={handlePrevDay}>
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 19l-7-7 7-7" /></svg>
-            </button>
-            <button className={`${styles.floatingArrow} ${styles.floatingArrowRight}`} onClick={handleNextDay}>
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 5l7 7-7 7" /></svg>
-            </button>
-          </>
-        )}
+      <div className={styles.shellBody}>
+        <aside className={`${styles.sidebar} ${!isSidebarOpen ? styles.sidebarClosed : ''}`} style={{ width: isSidebarOpen ? `${sidebarWidth}px` : '0px' }}>
+          <nav className={styles.sidebarNav}>
+            <MiniCalendar
+              currentDate={internalDate}
+              pathname={pathname}
+              onNavigate={(date) => {
+                router.push(`${pathname}?date=${format(date, 'yyyy-MM-dd')}`, { scroll: false })
+              }}
+            />
+            <ProjectSidebar initialProjects={initialProjects} />
+          </nav>
+        </aside>
+        {isSidebarOpen && <div className={styles.resizer} onMouseDown={startResizing} />}
+        
+        <aside className={`${styles.kanbanSidebar} ${!isKanbanOpen ? styles.kanbanClosed : ''}`} style={{ width: isKanbanOpen ? `${kanbanWidth}px` : '0px' }}>
+           <KanbanSidebar />
+        </aside>
+        {isKanbanOpen && <div className={styles.resizer} onMouseDown={startKanbanResizing} />}
+
+        <div className={styles.mainContent}>
+          <div className={styles.pageContent}>
+            {children}
+          </div>
+
+        </div>
       </div>
 
       {isModalVisuallyOpen && (

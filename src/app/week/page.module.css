@@ -6,6 +6,7 @@
 }
 
 .timeColHeader {
+  height: var(--subheader-height);
   border-right: 1px solid var(--border-color);
   border-bottom: 1px solid var(--border-color);
   position: sticky;
@@ -15,14 +16,15 @@
 }
 
 .dayHeader {
+  height: var(--subheader-height);
   text-align: center;
-  padding: 10px 0;
   border-right: 1px solid var(--border-color);
   border-bottom: 1px solid var(--border-color); /* Added bottom border natively */
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
+  justify-content: center;
+  gap: 2px;
   position: sticky;
   top: 0;
   z-index: 20;
