@@ -116,6 +116,18 @@ export async function updateEvent(
   return before.title
 }
 
+/** Create a new event from scratch. Returns the new ID or false on failure. */
+export async function createEvent(
+  data: Omit<EventSnapshot, 'id'>
+): Promise<string | false> {
+  const newId = await recreateEvent({ ...data, id: '' })
+  if (!newId) return false
+  const snapshot: EventSnapshot = { ...data, id: newId }
+  undoStack.push({ type: 'create', snapshot })
+  clearRedo()
+  return newId
+}
+
 /** Record a newly created event so it can be undone (deleted). */
 export function pushCreate(snapshot: EventSnapshot) {
   undoStack.push({ type: 'create', snapshot })

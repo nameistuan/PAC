@@ -9,6 +9,7 @@ import EventModal from './EventModal'
 import ProjectSidebar from './ProjectSidebar'
 import MiniCalendar from './MiniCalendar'
 import SearchPopover from './SearchPopover'
+import KanbanSidebar from './KanbanSidebar'
 import { undo, redo } from '@/lib/undoManager'
 
 export default function AppShell({
@@ -26,6 +27,11 @@ export default function AppShell({
 }) {
   const [sidebarWidth, setSidebarWidth] = useState(defaultSidebarWidth)
   const [isSidebarOpen, setIsSidebarOpen] = useState(defaultSidebarOpen)
+  
+  // Kanban pane state
+  const [kanbanWidth, setKanbanWidth] = useState(320)
+  const [isKanbanOpen, setIsKanbanOpen] = useState(false)
+
   const [isMounted, setIsMounted] = useState(false)
   const [isEventModalOpen, setIsEventModalOpen] = useState(false)
   const [isSearchOpen, setIsSearchOpen] = useState(false)
@@ -61,19 +67,16 @@ export default function AppShell({
     }
   }, [sidebarWidth, isSidebarOpen, gridScale, isMounted])
 
-  // URL as the sole source of truth for the date
   const dateParam = searchParams.get('date')
   const currentDateISO = useMemo(() => dateParam || getTodayISO(), [dateParam])
   const internalDate = useMemo(() => parseISOString(currentDateISO), [currentDateISO])
 
-  // Launch Redirect: If the user visits without a date, the client (who knows local 'Now') sets it.
   useEffect(() => {
     if (isMounted && !dateParam) {
       router.replace(`${pathname}?date=${getTodayISO()}`, { scroll: false })
     }
   }, [isMounted, dateParam, pathname, router])
 
-  // Programmatic Scroll Guard: Prevents onScroll from updating the URL while we're re-centering.
   const scrollRef = useRef<HTMLDivElement>(null)
   const isProgrammaticScroll = useRef(false)
 
@@ -110,7 +113,6 @@ export default function AppShell({
     router.push(`${pathname}?date=${format(next, 'yyyy-MM-dd')}`, { scroll: false })
   }
 
-  // Layout-Safe Centering: Forces scroll snap before the browser paints
   useLayoutEffect(() => {
     const container = scrollRef.current
     if (!container || !isMounted) return
@@ -118,11 +120,9 @@ export default function AppShell({
     const center = () => {
       const width = container.offsetWidth
       if (width > 100) {
-        // Lock the scroll engine while we snap
         isProgrammaticScroll.current = true
         container.scrollLeft = width
         
-        // Use a tiny timeout to ensure the browser has finished the jump before we accept new scroll input
         setTimeout(() => {
           isProgrammaticScroll.current = false
         }, 100)
@@ -138,7 +138,6 @@ export default function AppShell({
     if (!container) return
 
     const onScroll = () => {
-      // If we are re-centering programmatically, IGNORE this event to break the loop!
       if (isProgrammaticScroll.current) return
       
       const pos = container.scrollLeft
@@ -186,10 +185,8 @@ export default function AppShell({
 
   useEffect(() => {
     const handleWheel = (e: WheelEvent) => {
-      // Zoom with Cmd (Mac MetaKey) ONLY.
       if (e.metaKey && !e.ctrlKey) {
         e.preventDefault()
-        // Proportional scaling for a smoother, less sensitive experience
         const sensitivity = 0.001
         const delta = -e.deltaY * sensitivity
         setGridScale(prev => Math.max(0.5, Math.min(3, prev + delta)))
@@ -210,14 +207,12 @@ export default function AppShell({
     return () => window.removeEventListener('pac-event-deleted', handleExternalDelete)
   }, [editEventId])
 
-  // Synchronize dynamic hour height
   useEffect(() => {
     document.documentElement.style.setProperty('--hour-height', `${38 * gridScale}px`)
     document.documentElement.style.setProperty('--total-grid-height', `calc(var(--hour-height) * 24)`)
     window.dispatchEvent(new CustomEvent('pac-scale-change', { detail: gridScale }))
   }, [gridScale])
 
-  // Listen for pac-toast events dispatched by drag/resize/edit/delete operations
   useEffect(() => {
     const handleToast = (e: Event) => {
       const detail = (e as CustomEvent).detail
@@ -234,18 +229,34 @@ export default function AppShell({
 
   // Sidebar Handle logic
   const isResizing = useRef(false)
+  const isKanbanResizing = useRef(false)
+  
   const startResizing = () => { isResizing.current = true; document.body.style.cursor = 'col-resize'; }
-  const stopResizing = () => { isResizing.current = false; document.body.style.cursor = 'default'; }
+  const startKanbanResizing = () => { isKanbanResizing.current = true; document.body.style.cursor = 'col-resize'; }
+  
+  const stopResizing = () => { 
+    isResizing.current = false; 
+    isKanbanResizing.current = false;
+    document.body.style.cursor = 'default'; 
+  }
+  
   const resize = (e: MouseEvent) => {
     if (isResizing.current) {
       let nw = Math.max(200, Math.min(500, e.clientX))
       setSidebarWidth(nw)
     }
+    if (isKanbanResizing.current) {
+      // e.clientX distance from left edge minus the project sidebar width
+      const kanbanLeftEdge = isSidebarOpen ? sidebarWidth : 0;
+      let nw = Math.max(250, Math.min(800, e.clientX - kanbanLeftEdge))
+      setKanbanWidth(nw)
+    }
   }
+
   useEffect(() => {
     window.addEventListener('mousemove', resize); window.addEventListener('mouseup', stopResizing)
     return () => { window.removeEventListener('mousemove', resize); window.removeEventListener('mouseup', stopResizing) }
-  }, [])
+  }, [isSidebarOpen, sidebarWidth])
 
   return (
     <div className={styles.appContainer}>
@@ -263,6 +274,13 @@ export default function AppShell({
         </nav>
       </aside>
       <div className={`${styles.resizer} ${!isSidebarOpen ? styles.resizerHidden : ''}`} onMouseDown={startResizing} />
+      
+      {/* Kanban Pane */}
+      <aside className={`${styles.kanbanSidebar} ${!isKanbanOpen ? styles.kanbanClosed : ''}`} style={{ width: isKanbanOpen ? `${kanbanWidth}px` : '0px' }}>
+         <KanbanSidebar />
+      </aside>
+      <div className={`${styles.resizer} ${!isKanbanOpen ? styles.resizerHidden : ''}`} onMouseDown={startKanbanResizing} />
+
       <div className={styles.mainContent}>
         <header className={styles.topbar}>
           <div className={styles.topbarLeft}>
@@ -280,6 +298,15 @@ export default function AppShell({
               <button className={`${styles.toggleBtn} ${pathname === '/week' ? styles.active : ''}`} onClick={() => router.push(`/week?date=${format(internalDate, 'yyyy-MM-dd')}`)}>Week</button>
               <button className={`${styles.toggleBtn} ${pathname === '/day' ? styles.active : ''}`} onClick={() => router.push(`/day?date=${format(internalDate, 'yyyy-MM-dd')}`)}>4 Day</button>
             </div>
+            
+            <button 
+              className={`${styles.iconBtn} ${isKanbanOpen ? styles.iconBtnActive : ''}`} 
+              onClick={() => setIsKanbanOpen(!isKanbanOpen)}
+              title="Toggle Kanban Tasks"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 3H4v18h5V3zM20 3h-5v18h5V3zM14.5 3h-5v18h5V3z"/></svg>
+            </button>
+
             <button className={styles.searchBtn} onClick={() => setIsSearchOpen(true)} title="Search events (⌘K)">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
             </button>

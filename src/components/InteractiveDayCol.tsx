@@ -3,7 +3,7 @@
 import React, { ReactNode, useState, useEffect, useRef, startTransition } from 'react'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { format, isToday, parseISO } from 'date-fns'
-import { updateEvent } from '@/lib/undoManager'
+import { updateEvent, createEvent } from '@/lib/undoManager'
 
 const getCurrentHourHeight = () => {
   if (typeof window === 'undefined') return 38;
@@ -189,11 +189,12 @@ export default function InteractiveDayCol({ dateStr, className, children, style 
     e.preventDefault()
     
     const eventId = e.dataTransfer.getData('eventId')
-    if (!eventId) return
+    const taskId = e.dataTransfer.getData('taskId')
+    const taskTitle = e.dataTransfer.getData('taskTitle')
     
-    const cursorOffsetFromStartMs = (window as any).__activeDragCursorOffsetMs
-    if (cursorOffsetFromStartMs === undefined || cursorOffsetFromStartMs === null) return
+    if (!eventId && !taskId) return
     
+    const cursorOffsetFromStartMs = (window as any).__activeDragCursorOffsetMs || 0
     const durationMs = (window as any).__activeDragDuration || 3600000
     
     const colRect = (e.currentTarget as HTMLElement).getBoundingClientRect()
@@ -213,19 +214,37 @@ export default function InteractiveDayCol({ dateStr, className, children, style 
     const snappedNewStartDate = new Date(rawNewStartDate.getFullYear(), rawNewStartDate.getMonth(), rawNewStartDate.getDate(), 0, minutesOnTargetDay, 0)
     const snappedNewEndDate = new Date(snappedNewStartDate.getTime() + durationMs)
 
-    // No more pendingEvent — we trust the __staleEvents lock captured in Event's handleDragStart
     const startIso = snappedNewStartDate.toISOString()
     const endIso = snappedNewEndDate.toISOString()
     window.dispatchEvent(new CustomEvent('pac-resize-end')) // Terminate ghost block
 
     try {
-      const label = await updateEvent(eventId, {
-        startTime: startIso,
-        endTime: endIso
-      })
-      if (label) {
-        window.dispatchEvent(new CustomEvent('pac-toast', { detail: `Moved "${label}" — Press ⌘Z to undo` }))
+      if (eventId) {
+        // Move existing Event
+        const label = await updateEvent(eventId, {
+          startTime: startIso,
+          endTime: endIso
+        })
+        if (label) {
+          window.dispatchEvent(new CustomEvent('pac-toast', { detail: `Moved "${label}" — Press ⌘Z to undo` }))
+        }
+      } else if (taskId) {
+        // Create new Event from dragged Task
+        const newEventId = await createEvent({
+          title: taskTitle || 'Task Block',
+          description: null,
+          location: null,
+          startTime: startIso,
+          endTime: endIso,
+          projectId: null,
+          taskId: taskId,
+          isFluid: false
+        })
+        if (newEventId) {
+          window.dispatchEvent(new CustomEvent('pac-toast', { detail: `Blocked time for "${taskTitle}" — Press ⌘Z to undo` }))
+        }
       }
+      
       startTransition(() => {
         router.refresh()
       })

@@ -404,3 +404,26 @@
   from { opacity: 0; transform: translateX(-50%) translateY(12px); }
   to { opacity: 1; transform: translateX(-50%) translateY(0); }
 }
+
+/* Kanban Sidebar Styles */
+.kanbanSidebar {
+  width: var(--kanban-width, 320px);
+  background-color: var(--surface-color);
+  border-right: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  will-change: width;
+  transition: width 0.3s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.3s ease;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.kanbanClosed {
+  border-right: 1px solid transparent;
+}
+
+.iconBtnActive {
+  background-color: rgba(79, 70, 229, 0.1);
+  color: var(--primary-color);
+}

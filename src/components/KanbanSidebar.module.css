@@ -1,0 +1,140 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  background-color: var(--surface-color);
+  border-right: 1px solid var(--border-color);
+  overflow: hidden;
+}
+
+.header {
+  height: 50px;
+  display: flex;
+  align-items: center;
+  padding: 0 1.5rem;
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+.header h3 {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--primary-color);
+  margin: 0;
+}
+
+.content {
+  flex-grow: 1;
+  padding: 1rem;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-color);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.sectionHeader {
+  padding: 0.6rem 0.75rem;
+  background-color: var(--background-color);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  user-select: none;
+}
+
+.sectionHeader:hover {
+  background-color: var(--grid-border);
+}
+
+.sectionTitle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+}
+
+.chevron {
+  transition: transform 0.2s ease;
+  color: var(--text-tertiary);
+}
+
+.chevronOpen {
+  transform: rotate(90deg);
+}
+
+.countBadge {
+  background-color: var(--surface-color);
+  border: 1px solid var(--border-color);
+  padding: 2px 6px;
+  border-radius: 12px;
+  font-size: 0.65rem;
+  color: var(--text-tertiary);
+}
+
+.taskList {
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  background-color: var(--surface-color);
+}
+
+.emptyState {
+  font-size: 0.8rem;
+  color: var(--text-tertiary);
+  text-align: center;
+  padding: 1rem 0;
+  font-style: italic;
+}
+
+.taskCard {
+  background: var(--surface-color);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 0.75rem;
+  cursor: grab;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.taskCard:hover {
+  border-color: var(--text-tertiary);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  transform: translateY(-1px);
+}
+
+.taskCard:active {
+  cursor: grabbing;
+}
+
+.projectPill {
+  font-size: 0.6rem;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+  width: fit-content;
+  text-transform: uppercase;
+}
+
+.taskTitle {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  line-height: 1.3;
+}
