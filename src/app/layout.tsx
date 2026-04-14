@@ -20,10 +20,14 @@ export default async function RootLayout({
   const cookieStore = await cookies()
   const sidebarOpenStr = cookieStore.get('pac_sidebar_open')?.value
   const sidebarWidthStr = cookieStore.get('pac_sidebar_width')?.value
+  const kanbanOpenStr = cookieStore.get('pac_kanban_open')?.value
+  const kanbanWidthStr = cookieStore.get('pac_kanban_width')?.value
   const gridScaleStr = cookieStore.get('pac_grid_scale')?.value
   
   const defaultSidebarOpen = sidebarOpenStr !== 'false'
   const defaultSidebarWidth = sidebarWidthStr ? Number(sidebarWidthStr) : 250
+  const defaultKanbanOpen = kanbanOpenStr === 'true'
+  const defaultKanbanWidth = kanbanWidthStr ? Number(kanbanWidthStr) : 320
   const defaultGridScale = gridScaleStr ? Number(gridScaleStr) : 1
 
   const projects = await prisma.project.findMany({ orderBy: { name: 'asc' } })
@@ -34,6 +38,8 @@ export default async function RootLayout({
         <AppShell
           defaultSidebarOpen={defaultSidebarOpen}
           defaultSidebarWidth={defaultSidebarWidth}
+          defaultKanbanOpen={defaultKanbanOpen}
+          defaultKanbanWidth={defaultKanbanWidth}
           defaultGridScale={defaultGridScale}
           initialProjects={projects}
         >

@@ -16,12 +16,16 @@ export default function AppShell({
   children,
   defaultSidebarOpen = true,
   defaultSidebarWidth = 250,
+  defaultKanbanOpen = false,
+  defaultKanbanWidth = 320,
   defaultGridScale = 1,
   initialProjects = []
 }: {
   children: React.ReactNode,
   defaultSidebarOpen?: boolean,
   defaultSidebarWidth?: number,
+  defaultKanbanOpen?: boolean,
+  defaultKanbanWidth?: number,
   defaultGridScale?: number,
   initialProjects?: { id: string; name: string; color: string }[]
 }) {
@@ -29,8 +33,8 @@ export default function AppShell({
   const [isSidebarOpen, setIsSidebarOpen] = useState(defaultSidebarOpen)
   
   // Kanban pane state
-  const [kanbanWidth, setKanbanWidth] = useState(320)
-  const [isKanbanOpen, setIsKanbanOpen] = useState(false)
+  const [kanbanWidth, setKanbanWidth] = useState(defaultKanbanWidth)
+  const [isKanbanOpen, setIsKanbanOpen] = useState(defaultKanbanOpen)
 
   const [isMounted, setIsMounted] = useState(false)
   const [isEventModalOpen, setIsEventModalOpen] = useState(false)
@@ -42,15 +46,17 @@ export default function AppShell({
   const pathname = usePathname()
   
   const editEventId = searchParams.get('editEvent')
+  const editTaskId = searchParams.get('editTask')
   const createParam = searchParams.get('create')
 
-  const isModalVisuallyOpen = isEventModalOpen || !!editEventId || createParam === 'true'
+  const isModalVisuallyOpen = isEventModalOpen || !!editEventId || !!editTaskId || createParam === 'true'
 
   const handleCloseModal = () => {
     setIsEventModalOpen(false)
-    if (editEventId || createParam === 'true') {
+    if (editEventId || editTaskId || createParam === 'true') {
       const newParams = new URLSearchParams(searchParams.toString())
       newParams.delete('editEvent')
+      newParams.delete('editTask')
       newParams.delete('create')
       newParams.delete('createDate')
       router.push(`${pathname}?${newParams.toString()}`, { scroll: false })
@@ -61,11 +67,13 @@ export default function AppShell({
     if (isMounted) {
       document.cookie = `pac_sidebar_width=${sidebarWidth}; path=/; max-age=31536000`
       document.cookie = `pac_sidebar_open=${isSidebarOpen}; path=/; max-age=31536000`
+      document.cookie = `pac_kanban_width=${kanbanWidth}; path=/; max-age=31536000`
+      document.cookie = `pac_kanban_open=${isKanbanOpen}; path=/; max-age=31536000`
       document.cookie = `pac_grid_scale=${gridScale}; path=/; max-age=31536000`
     } else {
       setIsMounted(true)
     }
-  }, [sidebarWidth, isSidebarOpen, gridScale, isMounted])
+  }, [sidebarWidth, isSidebarOpen, kanbanWidth, isKanbanOpen, gridScale, isMounted])
 
   const dateParam = searchParams.get('date')
   const currentDateISO = useMemo(() => dateParam || getTodayISO(), [dateParam])
@@ -274,6 +282,7 @@ export default function AppShell({
       {isModalVisuallyOpen && (
         <EventModal 
           eventId={editEventId || undefined} 
+          taskId={editTaskId || undefined}
           onClose={handleCloseModal}
           initialDate={searchParams.get('createDate') || undefined}
           initialStartTime={searchParams.get('startTime') || undefined}

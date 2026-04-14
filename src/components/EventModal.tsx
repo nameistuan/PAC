@@ -22,19 +22,21 @@ type ModalType = 'event' | 'task' | 'reminder';
 
 export default function EventModal({ 
   eventId, 
+  taskId,
   onClose,
   initialDate,
   initialStartTime,
   initialEndTime
 }: { 
   eventId?: string, 
+  taskId?: string,
   onClose: () => void,
   initialDate?: string,
   initialStartTime?: string,
   initialEndTime?: string
 }) {
   // --- 1. HOOKS (STATES) ---
-  const [modalType, setModalType] = useState<ModalType>('event')
+  const [modalType, setModalType] = useState<ModalType>(taskId ? 'task' : 'event')
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [location, setLocation] = useState('')
@@ -73,7 +75,7 @@ export default function EventModal({
   
   const [projectId, setProjectId] = useState('')
   const [projects, setProjects] = useState<Project[]>([])
-  const isEditing = !!eventId
+  const isEditing = !!eventId || !!taskId
   
   const [taskStatus, setTaskStatus] = useState<'todo' | 'inprogress' | 'done'>('todo')
   const [isCreatingProject, setIsCreatingProject] = useState(false)
@@ -280,7 +282,7 @@ export default function EventModal({
             endTime: format(end, 'HH:mm'),
             isFluid: data.isFluid ?? false,
             projectId: data.projectId || '',
-            modalType: 'event' // TODO: implement fetching real type if stored
+            modalType: 'event'
           }
           
           setTitle(baseline.title)
@@ -292,6 +294,39 @@ export default function EventModal({
           setEndTime(baseline.endTime)
           setIsFluid(baseline.isFluid)
           setProjectId(baseline.projectId)
+          setModalType('event')
+          
+          initialValues.current = baseline
+          setHasInitializedValues(true)
+          
+          if (editor && data.description) {
+            editor.commands.setContent(data.description)
+          }
+        })
+    } else if (taskId) {
+      fetch(`/api/tasks/${taskId}`)
+        .then(res => res.json())
+        .then(data => {
+          const baseline = {
+            title: data.title,
+            description: data.description || '',
+            location: '',
+            startDate: data.dueDate ? format(new Date(data.dueDate), 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'),
+            endDate: data.dueDate ? format(new Date(data.dueDate), 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'),
+            startTime: '09:00',
+            endTime: '10:00',
+            isFluid: true,
+            projectId: data.projectId || '',
+            modalType: 'task'
+          }
+          
+          setTitle(baseline.title)
+          setDescription(baseline.description)
+          setStartDate(baseline.startDate)
+          setEndDate(baseline.endDate)
+          setProjectId(baseline.projectId)
+          setModalType('task')
+          setTaskStatus(data.status.toLowerCase() as any)
           
           initialValues.current = baseline
           setHasInitializedValues(true)
@@ -301,7 +336,7 @@ export default function EventModal({
           }
         })
     }
-  }, [eventId, editor])
+  }, [eventId, taskId, editor])
 
   useEffect(() => {
     if (projects.length > 0 && !projectId) {
@@ -340,43 +375,80 @@ export default function EventModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsSubmitting(true)
-    const start = isFluid ? new Date(`${startDate}T00:00:00`) : new Date(`${startDate}T${startTime}:00`)
-    const end = isFluid ? new Date(`${endDate}T23:59:59`) : new Date(`${endDate}T${endTime}:00`)
-    if (!isFluid && start >= end) {
-      alert("End time must be after start time.")
-      setIsSubmitting(false)
-      return
-    }
-    const startIso = start.toISOString(); const endIso = end.toISOString()
+
     try {
-      if (isEditing && eventId) {
-        await updateEvent(eventId, { title, description, location, startTime: startIso, endTime: endIso, projectId: projectId || null, isFluid })
-      } else {
-        const res = await fetch('/api/events', {
-          method: 'POST',
+      if (modalType === 'task') {
+        const url = taskId ? `/api/tasks/${taskId}` : '/api/tasks'
+        const method = taskId ? 'PUT' : 'POST'
+        const res = await fetch(url, {
+          method,
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ title, description, location, startTime: start, endTime: end, projectId: projectId || undefined, isFluid })
+          body: JSON.stringify({
+            title,
+            description,
+            status: taskStatus.toUpperCase(),
+            dueDate: isFluid ? new Date(`${startDate}T23:59:59`) : new Date(`${startDate}T${startTime}:00`),
+            projectId: projectId || undefined
+          })
         })
-        const created = await res.json()
-        pushCreate({ 
-          id: created.id, title, description, location, startTime: created.startTime, endTime: created.endTime, 
-          projectId: created.projectId || null, taskId: created.taskId || null, isFluid: created.isFluid ?? false 
-        })
+        if (!res.ok) throw new Error('Failed to save task')
+      } else {
+        const start = isFluid ? new Date(`${startDate}T00:00:00`) : new Date(`${startDate}T${startTime}:00`)
+        const end = isFluid ? new Date(`${endDate}T23:59:59`) : new Date(`${endDate}T${endTime}:00`)
+        if (!isFluid && start >= end) {
+          alert("End time must be after start time.")
+          setIsSubmitting(false)
+          return
+        }
+        const startIso = start.toISOString(); const endIso = end.toISOString()
+        
+        if (isEditing && eventId) {
+          await updateEvent(eventId, { title, description, location, startTime: startIso, endTime: endIso, projectId: projectId || null, isFluid })
+        } else {
+          const res = await fetch('/api/events', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ title, description, location, startTime: start, endTime: end, projectId: projectId || undefined, isFluid })
+          })
+          const created = await res.json()
+          pushCreate({ 
+            id: created.id, title, description, location, startTime: created.startTime, endTime: created.endTime, 
+            projectId: created.projectId || null, taskId: created.taskId || null, isFluid: created.isFluid ?? false 
+          })
+        }
       }
-      window.dispatchEvent(new CustomEvent('pac-toast', { detail: isEditing ? 'Event updated' : 'Event created' }))
+      
+      window.dispatchEvent(new CustomEvent('pac-toast', { detail: isEditing ? `${modalType} updated` : `${modalType} created` }))
+      if (modalType === 'task') {
+        window.dispatchEvent(new CustomEvent('pac-task-updated'))
+      }
       onClose(); startTransition(() => router.refresh())
     } catch (err) { console.error(err); setIsSubmitting(false) }
   }
 
   const handleDelete = async () => {
-    if (!eventId) return
+    if (!isEditing) return
     setIsSubmitting(true)
-    const title = await deleteEvent(eventId)
-    if (title) {
-       window.dispatchEvent(new CustomEvent('pac-toast', { detail: `Deleted "${title}"` }))
-       onClose(); startTransition(() => router.refresh())
-    } else {
-       setIsSubmitting(false)
+    
+    try {
+      if (taskId) {
+        const res = await fetch(`/api/tasks/${taskId}`, { method: 'DELETE' })
+        if (res.ok) {
+          window.dispatchEvent(new CustomEvent('pac-toast', { detail: `Task deleted` }))
+          window.dispatchEvent(new CustomEvent('pac-task-updated'))
+          onClose(); startTransition(() => router.refresh())
+        }
+      } else if (eventId) {
+        const title = await deleteEvent(eventId)
+        if (title) {
+           window.dispatchEvent(new CustomEvent('pac-toast', { detail: `Deleted "${title}"` }))
+           onClose(); startTransition(() => router.refresh())
+        }
+      }
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
