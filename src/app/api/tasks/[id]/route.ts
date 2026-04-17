@@ -8,6 +8,7 @@ import {
   validationError,
 } from '@/lib/api/route-errors'
 import { taskUpdateSchema, type TaskUpdateInput } from '@/lib/validation/schemas'
+import { getSessionUserId } from '@/lib/api/session'
 
 const taskInclude = { project: true, subtasks: true } as const
 
@@ -34,10 +35,13 @@ export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const userId = await getSessionUserId()
+  if (userId instanceof Response) return userId
+
   const { id } = await params
   try {
     const task = await prisma.task.findUnique({
-      where: { id },
+      where: { id, userId },
       include: taskInclude,
     })
     if (!task) return jsonError('Task not found', 404)
@@ -52,6 +56,9 @@ export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const userId = await getSessionUserId()
+  if (userId instanceof Response) return userId
+
   const { id } = await params
   const body = await readJsonBody(request)
   if (!body.ok) return body.response
@@ -70,7 +77,7 @@ export async function PUT(
     if (updatedAt !== undefined) {
       const clientTs = updatedAt instanceof Date ? updatedAt : new Date(String(updatedAt))
       const result = await prisma.task.updateMany({
-        where: { id, updatedAt: clientTs },
+        where: { id, updatedAt: clientTs, userId },
         data: updateInput,
       })
       if (result.count === 0) {
@@ -97,7 +104,7 @@ export async function PUT(
     }
 
     const task = await prisma.task.update({
-      where: { id },
+      where: { id, userId },
       data: updateInput,
       include: taskInclude,
     })
@@ -124,9 +131,12 @@ export async function DELETE(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const userId = await getSessionUserId()
+  if (userId instanceof Response) return userId
+
   const { id } = await params
   try {
-    await prisma.task.delete({ where: { id } })
+    await prisma.task.delete({ where: { id, userId } })
     return NextResponse.json({ success: true })
   } catch (error) {
     if (isPrismaNotFound(error)) return jsonError('Task not found', 404)

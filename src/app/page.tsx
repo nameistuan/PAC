@@ -1,5 +1,6 @@
 import styles from './page.module.css'
 import prisma from '@/lib/prisma'
+import { auth } from '@/lib/auth'
 import {
   startOfMonth,
   endOfMonth,
@@ -25,6 +26,8 @@ export default async function MonthView({
   searchParams: Promise<{ month?: string, date?: string }>
 }) {
   const resolvedParams = await searchParams
+  const session = await auth()
+  const userId = session?.user?.id
   
   // 1. Determine current month interval structure
   let currentDate = new Date()
@@ -61,7 +64,8 @@ export default async function MonthView({
     where: {
       AND: [
         { startTime: { lte: endDate } },
-        { endTime: { gte: startDate } }
+        { endTime: { gte: startDate } },
+        ...(userId ? [{ userId }] : []),
       ]
     },
     include: { project: true }

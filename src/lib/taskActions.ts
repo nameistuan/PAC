@@ -1,9 +1,13 @@
 'use server'
 
 import prisma from './prisma'
+import { auth } from '@/lib/auth'
 
 export async function getKanbanTasks() {
+  const session = await auth()
+  const userId = session?.user?.id
   return prisma.task.findMany({
+    where: userId ? { userId } : {},
     orderBy: { order: 'asc' },
     include: { project: true }
   })

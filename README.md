@@ -19,11 +19,17 @@ Working in Juggle is designed to be frictionless and fluid:
 5. **Inline Everything:** Click on any event or task to see our gorgeous, glassy action modal. No page reloads. No friction.
 
 ## Tech Stack
-- **Framework**: [Next.js](https://nextjs.org/) (App Router)
+- **Framework**: [Next.js](https://nextjs.org/) (App Router + Turbopack)
 - **Language**: TypeScript
 - **Styling**: Vanilla CSS (CSS Modules & Global CSS Variables for premium aesthetics)
-- **Database**: SQLite (local dev) / PostgreSQL (production) using Prisma ORM
+- **Database**: PostgreSQL (Neon Serverless) with Prisma ORM
+- **Deployment**: [Vercel](https://vercel.com)
 - **Date Utilities**: `date-fns` & drag-and-drop temporal math.
+
+## Live Application
+Juggle is deployed and accessible in production:
+- **Production URL**: [https://juggle-pm.vercel.app](https://juggle-pm.vercel.app) (Update with your actual Vercel URL)
+- **Database**: Hosted on Neon (Serverless Postgres)
 
 ## Developer Setup
 If you would like to run Juggle locally for development:

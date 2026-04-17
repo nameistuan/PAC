@@ -2,10 +2,15 @@ import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { jsonError, readJsonBody, validationError } from '@/lib/api/route-errors'
 import { projectCreateSchema } from '@/lib/validation/schemas'
+import { getSessionUserId } from '@/lib/api/session'
 
 export async function GET() {
+  const userId = await getSessionUserId()
+  if (userId instanceof Response) return userId
+
   try {
     const projects = await prisma.project.findMany({
+      where: { userId },
       orderBy: { name: 'asc' },
     })
     return NextResponse.json(projects)
@@ -16,6 +21,9 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const userId = await getSessionUserId()
+  if (userId instanceof Response) return userId
+
   const body = await readJsonBody(request)
   if (!body.ok) return body.response
 
@@ -28,6 +36,7 @@ export async function POST(request: Request) {
       data: {
         name: d.name,
         color: d.color ?? '#312E81',
+        userId,
       },
     })
 

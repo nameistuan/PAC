@@ -167,17 +167,20 @@ export default function InteractiveDayCol({ dateStr, className, children, style 
     const dragCursorTimeMs = currentDayStart.getTime() + cursorDayOffsetMs
     
     const rawNewStartMs = dragCursorTimeMs - cursorOffsetFromStartMs
-    
     const rawNewStartDate = new Date(rawNewStartMs)
-    let minutesOnTargetDay = rawNewStartDate.getHours() * 60 + rawNewStartDate.getMinutes()
-    minutesOnTargetDay = Math.round(minutesOnTargetDay / 15) * 15
     
-    const snappedNewStartDate = new Date(rawNewStartDate.getFullYear(), rawNewStartDate.getMonth(), rawNewStartDate.getDate(), 0, minutesOnTargetDay, 0)
+    // We want to preserve the hours/minutes calculated, but anchor them to THIS column's date
+    // to prevent the "jump to Monday 00:00" bug when dragging at the top of Tuesday.
+    let totalMinutes = rawNewStartDate.getHours() * 60 + rawNewStartDate.getMinutes()
+    const snappedMinutes = Math.round(totalMinutes / 15) * 15
+    
+    const [y, m, d] = dateStr.split('-').map(Number)
+    const snappedNewStartDate = new Date(y, m - 1, d, 0, snappedMinutes, 0)
     
     // Tap directly into the established robust resizing engine for ghost-block multi-day consistency
     window.dispatchEvent(new CustomEvent('pac-resize-preview', { 
       detail: { 
-        id: (window as any).__activeDragId, // Matches InteractiveEvent's own ID, causing it to hide!
+        id: (window as any).__activeDragId, 
         title: (window as any).__activeDragTitle || '',
         startTimeStr: snappedNewStartDate.toISOString(),
         targetEndTimeStr: new Date(snappedNewStartDate.getTime() + durationMs).toISOString(),
@@ -214,9 +217,11 @@ export default function InteractiveDayCol({ dateStr, className, children, style 
     
     const rawNewStartMs = dragCursorTimeMs - cursorOffsetFromStartMs
     const rawNewStartDate = new Date(rawNewStartMs)
-    let minutesOnTargetDay = rawNewStartDate.getHours() * 60 + rawNewStartDate.getMinutes()
-    minutesOnTargetDay = Math.round(minutesOnTargetDay / 15) * 15
-    const snappedNewStartDate = new Date(rawNewStartDate.getFullYear(), rawNewStartDate.getMonth(), rawNewStartDate.getDate(), 0, minutesOnTargetDay, 0)
+    let totalMinutes = rawNewStartDate.getHours() * 60 + rawNewStartDate.getMinutes()
+    const snappedMinutes = Math.round(totalMinutes / 15) * 15
+    
+    const [y, m, d] = dateStr.split('-').map(Number)
+    const snappedNewStartDate = new Date(y, m - 1, d, 0, snappedMinutes, 0)
     const snappedNewEndDate = new Date(snappedNewStartDate.getTime() + durationMs)
 
     const startIso = snappedNewStartDate.toISOString()
@@ -457,7 +462,7 @@ export default function InteractiveDayCol({ dateStr, className, children, style 
       data-day-col="true"
     >
       {isPendingDrop && (
-        <div style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(255,255,255,0.05)', zIndex: 10, pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(255,255,255,0.08)', zIndex: 10, pointerEvents: 'none' }} />
       )}
       {/* Current time indicator */}
       {nowFraction !== null && (

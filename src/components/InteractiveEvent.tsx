@@ -5,6 +5,11 @@ import { format } from 'date-fns'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { deleteEvent, updateEvent } from '@/lib/undoManager'
 
+const getCurrentHourHeight = () => {
+  if (typeof window === 'undefined') return 38;
+  return parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--hour-height')) || 38;
+};
+
 export default function InteractiveEvent({ 
   event, 
   href, 
@@ -139,15 +144,12 @@ export default function InteractiveEvent({
     const actualStart = new Date(event.fullStartTime)
     const actualEnd = new Date(event.fullEndTime)
     const durationMs = actualEnd.getTime() - actualStart.getTime()
-    const hScale = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--hour-height')) || 38
+    const hScale = getCurrentHourHeight()
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
-    const topPixels = parseFloat(getComputedStyle(e.currentTarget as HTMLElement).top) || 0
-    const cursorYInCol = (e.clientY - rect.top) + topPixels
-    const cursorDayOffsetMs = (cursorYInCol / hScale) * 3600000
-    const [yyyy, mm, dd] = dateStr.split('-').map(Number)
-    const currentDayStart = new Date(yyyy, mm - 1, dd)
-    const dragCursorTimeMs = currentDayStart.getTime() + cursorDayOffsetMs
-    const cursorOffsetFromStartMs = dragCursorTimeMs - actualStart.getTime()
+    
+    // Simplest math: pixel offset within the event block converted to time
+    const pixelOffsetInsideEvent = e.clientY - rect.top
+    const cursorOffsetFromStartMs = (pixelOffsetInsideEvent / hScale) * 3600000
 
     e.dataTransfer.setData('eventId', event.id)
     e.dataTransfer.effectAllowed = 'move'
@@ -164,7 +166,9 @@ export default function InteractiveEvent({
     blankImg.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
     e.dataTransfer.setDragImage(blankImg, 0, 0)
     
-    // Hide self
+    // Important: use opacity/pointer-events instead of display:none.
+    // display:none can cancel the drag-and-drop session in many browsers (like Chrome)
+    // because the "source" element disappears from the accessibility/layout tree.
     setTimeout(() => setIsHidden(true), 0)
   }
 
@@ -257,7 +261,8 @@ export default function InteractiveEvent({
       tabIndex={0}
       onKeyDown={handleKeyDown}
       style={{
-        display: isHidden ? 'none' : 'block',
+        opacity: isHidden ? 0 : 1,
+        pointerEvents: isHidden ? 'none' : 'auto',
         top: `calc(var(--hour-height) * ${topFraction})`,
         height: `max(16px, calc(var(--hour-height) * ${heightFraction}))`,
         position: 'absolute',

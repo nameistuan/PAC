@@ -9,6 +9,62 @@ datasource db {
 }
 
 // ----------------------------------------------------------------------------
+// AUTHENTICATION (NextAuth.js Models)
+// ----------------------------------------------------------------------------
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  accounts      Account[]
+  sessions      Session[]
+
+  projects       Project[]
+  tasks          Task[]
+  events         Event[]
+  journalEntries JournalEntry[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Account {
+  id                 String  @id @default(cuid())
+  userId             String
+  type               String
+  provider           String
+  providerAccountId  String
+  refresh_token      String?  @db.Text
+  access_token       String?  @db.Text
+  expires_at         Int?
+  token_type         String?
+  scope              String?
+  id_token           String?  @db.Text
+  session_state      String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ----------------------------------------------------------------------------
 // ORGANIZATIONAL CONTEXTS (Projects, Classes, Clients)
 // ----------------------------------------------------------------------------
 model Project {
@@ -17,14 +73,15 @@ model Project {
   description String?
   color       String  @default("#312E81")
 
-  // Future proofing: Semesters or projects end. Don't force deletion.
+  // Data isolation
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   status String @default("ACTIVE") // e.g., "ACTIVE", "ARCHIVED"
 
-  // Optional bounds for the project
   startDate DateTime?
   endDate   DateTime?
 
-  // Used for custom drag-and-drop sorting in the sidebar
   sortOrder Float @default(0)
 
   tasks  Task[]
@@ -40,25 +97,26 @@ model Project {
 model Task {
   id          String  @id @default(uuid())
   title       String
-  description String? // Rich text or markdown support
+  description String?
 
   // Core Kanban fields
-  status   String @default("TODO") // "BACKLOG", "TODO", "IN_PROGRESS", "DONE"
-  priority String @default("MEDIUM") // "LOW", "MEDIUM", "HIGH", "URGENT"
-  order    Float  @default(0) // Precise drag-and-drop ordering within a column
+  status   String @default("TODO")
+  priority String @default("MEDIUM")
+  order    Float  @default(0)
 
-  // Time and planning (The Juggle magic mapping)
-  dueDate DateTime? // Hard deadline
+  // Data isolation
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  // plannedDate links a task to the Daily View WITHOUT assigning a hard hour slot
-  plannedDate String? // Format: "YYYY-MM-DD"
+  dueDate DateTime?
+  plannedDate String? 
 
-  estimatedMinutes Int? // Future proofing for time-blocking suggestions
+  estimatedMinutes Int?
 
   projectId String?
   project   Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
-  events   Event[] // Time-boxed slots on the calendar for this task
+  events   Event[]
   subtasks Subtask[]
   tags     Tag[]
 
@@ -70,7 +128,7 @@ model Subtask {
   id          String  @id @default(uuid())
   title       String
   isCompleted Boolean @default(false)
-  order       Float   @default(0) // Ordering inside the task
+  order       Float   @default(0)
 
   taskId String
   task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
@@ -102,15 +160,17 @@ model Event {
   startTime DateTime
   endTime   DateTime
 
-  // Future proofing
+  // Data isolation
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   isAllDay       Boolean @default(false)
-  recurrenceRule String? // String to support standard iCal RRULE logic
+  recurrenceRule String?
   isFluid        Boolean @default(false)
 
   projectId String?
   project   Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
-  // A task can be sliced into multiple events.
   taskId String?
   task   Task?   @relation(fields: [taskId], references: [id], onDelete: SetNull)
 
@@ -123,8 +183,12 @@ model Event {
 // ----------------------------------------------------------------------------
 model JournalEntry {
   id      String @id @default(uuid())
-  date    String @unique // Format: "YYYY-MM-DD" to easily link to a calendar day
-  content String // The unstructured thoughts for that day
+  date    String @unique
+  content String
+
+  // Data isolation
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

@@ -8,6 +8,7 @@ import {
   validationError,
 } from '@/lib/api/route-errors'
 import { eventUpdateSchema, type EventUpdateInput } from '@/lib/validation/schemas'
+import { getSessionUserId } from '@/lib/api/session'
 
 const eventInclude = { project: true } as const
 
@@ -32,10 +33,13 @@ export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const userId = await getSessionUserId()
+  if (userId instanceof Response) return userId
+
   try {
     const { id } = await params
     const event = await prisma.event.findUnique({
-      where: { id },
+      where: { id, userId },
       include: eventInclude,
     })
 
@@ -54,6 +58,9 @@ export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const userId = await getSessionUserId()
+  if (userId instanceof Response) return userId
+
   const { id } = await params
   const body = await readJsonBody(request)
   if (!body.ok) return body.response
@@ -69,7 +76,7 @@ export async function PUT(
   }
 
   try {
-    const existing = await prisma.event.findUnique({ where: { id } })
+    const existing = await prisma.event.findUnique({ where: { id, userId } })
     if (!existing) return jsonError('Event not found', 404)
 
     const start = rest.startTime ?? existing.startTime
@@ -81,7 +88,7 @@ export async function PUT(
     if (updatedAt !== undefined) {
       const clientTs = updatedAt instanceof Date ? updatedAt : new Date(String(updatedAt))
       const result = await prisma.event.updateMany({
-        where: { id, updatedAt: clientTs },
+        where: { id, updatedAt: clientTs, userId },
         data: updateFields,
       })
       if (result.count === 0) {
@@ -149,10 +156,13 @@ export async function DELETE(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const userId = await getSessionUserId()
+  if (userId instanceof Response) return userId
+
   try {
     const { id } = await params
     await prisma.event.delete({
-      where: { id },
+      where: { id, userId },
     })
 
     return NextResponse.json({ success: true })

@@ -2,12 +2,17 @@ import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { jsonError, readJsonBody, validationError } from '@/lib/api/route-errors'
 import { taskCreateSchema } from '@/lib/validation/schemas'
+import { getSessionUserId } from '@/lib/api/session'
 
 const taskInclude = { project: true, subtasks: true } as const
 
 export async function GET() {
+  const userId = await getSessionUserId()
+  if (userId instanceof Response) return userId
+
   try {
     const tasks = await prisma.task.findMany({
+      where: { userId },
       include: taskInclude,
       orderBy: { order: 'asc' },
     })
@@ -19,6 +24,9 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const userId = await getSessionUserId()
+  if (userId instanceof Response) return userId
+
   const body = await readJsonBody(request)
   if (!body.ok) return body.response
 
@@ -37,6 +45,7 @@ export async function POST(request: Request) {
         plannedDate: d.plannedDate,
         projectId: d.projectId,
         order: d.order ?? 0,
+        userId,
       },
       include: taskInclude,
     })

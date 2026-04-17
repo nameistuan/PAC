@@ -3,16 +3,23 @@ import prisma from '@/lib/prisma'
 import { resolveProjectIdForNewEvent } from '@/lib/api/resolve-event-project'
 import { jsonError, readJsonBody, validationError } from '@/lib/api/route-errors'
 import { eventCreateSchema } from '@/lib/validation/schemas'
+import { getSessionUserId } from '@/lib/api/session'
 
 const eventInclude = { project: true } as const
 
 export async function GET(request: Request) {
+  const userId = await getSessionUserId()
+  if (userId instanceof Response) return userId
+
   try {
     const { searchParams } = new URL(request.url)
     const q = searchParams.get('q')?.trim()
 
     const events = await prisma.event.findMany({
-      where: q ? { title: { contains: q } } : undefined,
+      where: {
+        userId,
+        ...(q ? { title: { contains: q } } : {}),
+      },
       orderBy: { startTime: 'desc' },
       take: q ? 20 : undefined,
       include: eventInclude,
@@ -25,6 +32,9 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const userId = await getSessionUserId()
+  if (userId instanceof Response) return userId
+
   const body = await readJsonBody(request)
   if (!body.ok) return body.response
 
@@ -47,6 +57,7 @@ export async function POST(request: Request) {
         isFluid: d.isFluid ?? false,
         isAllDay: d.isAllDay ?? false,
         recurrenceRule: d.recurrenceRule ?? null,
+        userId,
       },
       include: eventInclude,
     })

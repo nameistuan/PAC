@@ -1,5 +1,6 @@
 import styles from './page.module.css'
 import prisma from '@/lib/prisma'
+import { auth } from '@/lib/auth'
 import {
   eachDayOfInterval,
   isToday,
@@ -28,6 +29,8 @@ export default async function WeekView({
 }) {
   const { date, month } = await searchParams
   const currentDate = parseISOString(date)
+  const session = await auth()
+  const userId = session?.user?.id
   
   const getEventUrl = (event: any) => {
     const params = new URLSearchParams()
@@ -55,7 +58,8 @@ export default async function WeekView({
     where: {
       AND: [
         { startTime: { lte: endDate } },
-        { endTime: { gte: startDate } }
+        { endTime: { gte: startDate } },
+        ...(userId ? [{ userId }] : []),
       ]
     },
     include: { project: true }
