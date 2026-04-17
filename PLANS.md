@@ -26,6 +26,7 @@ A roadmap of features, improvements, and architectural goals for the Juggle app.
 ## ⚡ Efficiency & Shortcuts
 - [ ] **Event Duplication**: Support for `Ctrl+C` / `Ctrl+V` (or `Cmd+C/V`) to quickly clone events or tasks on the calendar/kanban board.
 - [ ] **Quick Creation**: `Shift + N` to open the creation modal from anywhere.
+- [ ] **Multi-Select**: Enable `Shift + Click and Drag` to highlight and select multiple events/tasks at once for bulk movement or editing.
 
 ---
 
