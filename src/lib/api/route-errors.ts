@@ -17,8 +17,9 @@ export function isPrismaNotFound(error: unknown): boolean {
   return error instanceof PrismaClientKnownRequestError && error.code === 'P2025'
 }
 
-export async function readJsonBody(request: Request): Promise { ok: true; data: unknown } | { ok: false; response: NextResponse }
-  > {
+export async function readJsonBody(request: Request): Promise
+  { ok: true; data: unknown } | { ok: false; response: NextResponse }
+> {
   try {
     const data = await request.json()
     return { ok: true, data }
