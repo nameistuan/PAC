@@ -4,12 +4,19 @@ A roadmap of features, improvements, and architectural goals for the Juggle app.
 
 ---
 
+## 🟢 Recently Accomplished (Current State)
+- [x] **Unified Identity System**: Seamless API synchronization where updating an event auto-updates its associated parent task, and vice-versa. Clicking an event linked to a task correctly opens the Task configurations.
+- [x] **Glassy UI Components**: Complete UI overhaul utilizing semi-transparent status chips, color-coded priority pills, and project labels for a significantly more modern, seamless, and "glassy" app experience.
+- [x] **Temporal Kanban Sync**: Dragging a task strictly onto a calendar view automatically places it on your chronological timeline while independently firing off an API call to upgrade its status to `IN_PROGRESS` on the physical Kanban board. 
+- [x] **Month Grid Stability**: Eliminated CSS `1fr` auto-sizing bugs so events successfully text-truncate without disrupting the grid sizing geometry.
+
+---
+
 ## 🚀 High Priority (Soon)
 
 ### User Onboarding & First Run
 - [ ] **Empathetic Onboarding**: When a user has zero data, show a welcoming overlay or empty state card: *"What are you juggling right now?"*
-- [ ] **Project Quick-Start**: A guided wizard to create the first 3 projects (e.g., School, Work, Personal).
-- [ ] **Interactive Tutorial**: Subtle pulse animations to guide the user towards the `+ New Event` button.
+- [ ] **Interactive Tutorial**: Subtle pulse animations to guide the user towards the `+ New Event` or drag-and-drop mechanics.
 
 ### Kanban Enhancements
 - [ ] **Overdue Highlights**: Visually flag tasks whose `dueDate` has passed.
@@ -23,21 +30,12 @@ A roadmap of features, improvements, and architectural goals for the Juggle app.
 ---
 
 ## 🛠 Stability & DX
-
-### State & Reliability
+- [ ] **Full PostgreSQL Migration**: The next step towards hosting is switching standard SQLite data paradigms out for persistent relational models (Postgres via Prisma) to support seamless horizontal deployments.
 - [ ] **Optimistic Sync**: Even more robust handling of offline/slow connections for drag-and-drop.
-- [ ] **Search Refinement**: Advanced filters (filter by project, status, or date range).
-
----
-
-## 🎨 Visuals & UX
-- [ ] **Project Icons**: Add support for simple icons (lucide-react) next to project names.
-- [ ] **Dark Mode Refinement**: Ensure perfect contrast for indigo/vibrant project colors in dark mode.
-- [ ] **Transitions**: Smoother height transitions when expanding/collapsing Kanban sections.
+- [ ] **Authentication**: Add JWT/NextAuth providers (Google, GitHub) for individual accounts and user routing.
 
 ---
 
 ## 💡 Ideas & Research
 - [ ] **AI Prioritization**: Suggest which tasks to "Juggle" onto today's calendar based on deadlines.
-- [ ] **Collaboration**: Shared projects for group classes (e.g., CS429 project teams).
 - [ ] **Mobile App**: PWA or React Native companion for quick task entry.
