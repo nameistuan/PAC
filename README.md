@@ -1,59 +1,58 @@
 # Juggle
 
-A revolutionary productivity command center that seamlessly merges a robust Kanban task manager with a highly polished calendar grid. Stop switching between apps, and start seeing your time and tasks in one continuous, holistic canvas.
+**The unified command center for your time and tasks.**
 
-> **Note:** For a full breakdown of the project goals, philosophy, and UI architecture, please see [VISION.md](./VISION.md).
+Juggle is a premium productivity platform that eliminates the conceptual gap between "what you need to do" (Tasks) and "when you're going to do it" (Calendar). By merging a powerful Kanban board with a fluid, multi-view calendar, Juggle provides a holistic canvas for high-performers to manage their lives in one place.
 
-## What is Juggle?
-Traditional productivity forces you to jump between a task board (what you need to do) and a calendar (when you need to do it). **Juggle** eliminates mode-switching by treating both Status (Kanban) and Time (Calendar) as physical spaces on a unified view. 
+## 🚀 Live Application
+- **URL**: [https://juggle-alpha.vercel.app](https://juggle-alpha.vercel.app)
+- **Status**: Production-ready, Personal/Multi-user enabled.
 
-It is designed for professionals, students, and polymaths who are juggling multiple contexts in their life and need a single home base to rule them all.
+## ✨ Core Features
 
-## How to Use Juggle
+### 1. The Unified Canvas
+- **Hybrid Data Engine**: Every task can become an event, and every event tracks back to a project.
+- **Fluid Time-Boxing**: Drag any task from the Kanban board directly onto the Calendar to instantly schedule it. Tasks automatically update to "In Progress" when hit the timeline.
 
-Working in Juggle is designed to be frictionless and fluid:
-1. **Create Projects:** Start by categorizing your life. Create color-coded "Projects" (e.g. Work, Side Hustle, Personal) using the left-hand navigation. 
-2. **Brainstorm Tasks:** Add tasks on your Kanban board. Assign them to your projects, flag their priority level (Low, Medium, High, Urgent), and add start/due dates.
-3. **Time-Box Your Day:** Grab a task from the "Backlog" or "To Do" column and drag it directly onto your calendar timeline (Daily, Weekly, or Monthly view). 
-4. **Auto-Synthesis:** We take care of the rest. That dragged task is instantly time-boxed on your calendar and its status on the Kanban board is auto-magically updated to "In Progress". 
-5. **Inline Everything:** Click on any event or task to see our gorgeous, glassy action modal. No page reloads. No friction.
+### 2. Multi-User Intelligence
+- **Google OAuth**: One-click secure login via Auth.js (NextAuth v5).
+- **Absolute Data Isolation**: Users see only their own projects, tasks, and events. 
+- **Security-First API**: Every backend route (GET/PUT/DELETE) is protected by IDOR-safe checks against the user session.
 
-## Tech Stack
-- **Framework**: [Next.js](https://nextjs.org/) (App Router + Turbopack)
-- **Language**: TypeScript
-- **Styling**: Vanilla CSS (CSS Modules & Global CSS Variables for premium aesthetics)
-- **Database**: PostgreSQL (Neon Serverless) with Prisma ORM
-- **Deployment**: [Vercel](https://vercel.com)
-- **Date Utilities**: `date-fns` & drag-and-drop temporal math.
+### 3. Professional Calendar Suite
+- **Interactive Views**: Switch between Day, Week, and Month views with zero friction.
+- **Smart Layout Engine**: Overlapping events automatically cluster and indent for perfect readability.
+- **Timezone Correction**: Intelligent client-side rendering ensures your calendar looks correct in your local time, regardless of the server's location.
 
-## Live Application
-Juggle is deployed and accessible in production:
-- **Production URL**: [https://juggle-pm.vercel.app](https://juggle-pm.vercel.app) (Update with your actual Vercel URL)
-- **Database**: Hosted on Neon (Serverless Postgres)
+### 4. Kanban Methodology
+- **Project-Centric**: Organize everything into color-coded projects.
+- **Priority Scaling**: Assign Low, Medium, High, or Urgent priorities to focus on what matters.
+- **Full Sync**: Dragging tasks between status columns (To Do, In Progress, Done) is reflected across the entire app instantly.
 
-## Developer Setup
-If you would like to run Juggle locally for development:
+## 🛠 Tech Stack
+- **Framework**: Next.js 15+ (App Router, Turbopack)
+- **Authentication**: Auth.js (v5 Beta) + Google OAuth
+- **Database**: PostgreSQL (Neon Serverless)
+- **ORM**: Prisma 7
+- **Styling**: Vanilla CSS (Premium Glassmorphism & Dark Mode)
+- **Deployment**: Vercel
 
-1. Install dependencies:
-   ```bash
-   npm install
-   ```
+## 📖 Development Status
 
-2. Generate Prisma Client & Sync DB:
-   ```bash
-   npx prisma generate
-   npx prisma db push
-   ```
+| Module | Status | Details |
+| :--- | :--- | :--- |
+| **Auth** | ✅ Complete | Google Login + JWT Session Strategy |
+| **Database** | ✅ Complete | Multi-tenant schema with User relations |
+| **Kanban** | ✅ Complete | Drag & Drop + Project Filtering |
+| **Calendar** | ✅ Complete | Overlap Detection + Timezone safety |
+| **Security** | ✅ Complete | Scoped API tokens + Route Protection |
 
-3. Run the development server:
-   ```bash
-   npm run dev
-   ```
+## 🛠 Setup & Deployment
 
-4. Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+1. **Install**: `npm install`
+2. **Environment**: Set up `.env` with `DATABASE_URL`, `AUTH_SECRET`, `AUTH_GOOGLE_ID`, and `AUTH_GOOGLE_SECRET`.
+3. **Database**: `npx prisma db push`
+4. **Run**: `npm run dev`
 
-## Development Principles
-- **Living Documents**: Always keep `VISION.md`, README, and implementation plans strictly aligned with the codebase.
-- **Premium UI**: Utilizing high quality Vanilla CSS for fluid animations, gradients, and a borderless modern aesthetic.
-- **Robust Data Engine**: Ensure the hybrid Task/Event database model maintains integrity.
-- **Atomic Commits**: Ensure small, atomic commits for a clean repository history.
+---
+*Juggle is designed for pros, polymaths, and anyone jumping between too many tabs. Stop switching. Start juggling.*
