@@ -39,6 +39,7 @@ export default function AppShell({
   const [isMounted, setIsMounted] = useState(false)
   const [isEventModalOpen, setIsEventModalOpen] = useState(false)
   const [isSearchOpen, setIsSearchOpen] = useState(false)
+  const [isClosing, setIsClosing] = useState(false)
   const [gridScale, setGridScale] = useState(defaultGridScale)
   const [toast, setToast] = useState<string | null>(null)
   const searchParams = useSearchParams()
@@ -49,16 +50,31 @@ export default function AppShell({
   const editTaskId = searchParams.get('editTask')
   const createParam = searchParams.get('create')
 
-  const isModalVisuallyOpen = isEventModalOpen || !!editEventId || !!editTaskId || createParam === 'true'
+  useEffect(() => {
+    if (!editEventId && !editTaskId && createParam !== 'true') {
+      setIsClosing(false)
+    }
+  }, [editEventId, editTaskId, createParam])
+
+  const isModalVisuallyOpen = (isEventModalOpen || !!editEventId || !!editTaskId || createParam === 'true') && !isClosing
 
   const handleCloseModal = () => {
     setIsEventModalOpen(false)
     if (editEventId || editTaskId || createParam === 'true') {
+      setIsClosing(true)
       const newParams = new URLSearchParams(searchParams.toString())
       newParams.delete('editEvent')
       newParams.delete('editTask')
       newParams.delete('create')
       newParams.delete('createDate')
+      newParams.delete('startTime')
+      newParams.delete('endTime')
+      newParams.delete('ax')
+      newParams.delete('ay')
+      newParams.delete('aw')
+      newParams.delete('ah')
+      newParams.delete('modalType')
+      newParams.delete('status')
       router.push(`${pathname}?${newParams.toString()}`, { scroll: false })
     }
   }

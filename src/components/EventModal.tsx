@@ -57,6 +57,7 @@ export default function EventModal({
   const initialValues = useRef<any>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const isSubmittingRef = useRef(false)
+  const hasSavedRef = useRef(false)
   const [hasInitializedValues, setHasInitializedValues] = useState(false)
   const [mounted, setMounted] = useState(false)
 
@@ -130,6 +131,7 @@ export default function EventModal({
 
   // --- 5. LOGIC HELPERS ---
   const isDirty = () => {
+    if (hasSavedRef.current) return false
     if (!hasInitializedValues || !initialValues.current) return false
     
     const norm = (val: any) => (val === null || val === undefined) ? '' : String(val).trim()
@@ -173,6 +175,7 @@ export default function EventModal({
   }
 
   const handleCloseAttempt = () => {
+    if (isSubmittingRef.current) return
     if (isDirty()) {
       const confirmDiscard = window.confirm("You have unsaved changes. Do you want to discard them?")
       if (!confirmDiscard) return
@@ -495,6 +498,7 @@ export default function EventModal({
       }
       // Reset dirty flag on successful save
       if (typeof window !== 'undefined') { (window as any).__isJuggleModalDirty = false }
+      hasSavedRef.current = true
       onClose()
       setTimeout(() => {
         router.refresh()
@@ -513,6 +517,8 @@ export default function EventModal({
         if (res.ok) {
           window.dispatchEvent(new CustomEvent('pac-toast', { detail: `Task deleted` }))
           window.dispatchEvent(new CustomEvent('pac-task-updated'))
+          hasSavedRef.current = true
+          if (typeof window !== 'undefined') { (window as any).__isJuggleModalDirty = false }
           onClose()
           setTimeout(() => { router.refresh() }, 50)
         }
@@ -521,6 +527,8 @@ export default function EventModal({
         if (title) {
            window.dispatchEvent(new CustomEvent('pac-toast', { detail: `Deleted "${title}"` }))
         }
+        hasSavedRef.current = true
+        if (typeof window !== 'undefined') { (window as any).__isJuggleModalDirty = false }
         onClose()
         setTimeout(() => {
           router.refresh()
